@@ -1,0 +1,24 @@
+
+bin_PROGRAMS = ranker-learn-zcat count count_by_sentence drop_common_features transform_logprob
+
+
+ranker_learn_zcat_SOURCES = ranker-learn-zcat.cc
+ranker_learn_zcat_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
+ranker_learn_zcat_LDFLAGS = -lm -lz
+
+
+count_SOURCES = count.c hashtable.h hashtable.c
+count_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+count_LDFLAGS = 
+
+count_by_sentence_SOURCES = count_by_sentence.c hashtable.h hashtable.c
+count_by_sentence_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+count_by_sentence_LDFLAGS = 
+
+drop_common_features_SOURCES = drop_common_features.c vector.h hashtable.h hashtable.c
+drop_common_features_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+drop_common_features_LDFLAGS = 
+
+transform_logprob_SOURCES = transform_logprob.c
+transform_logprob_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+transform_logprob_LDFLAGS= -lm
