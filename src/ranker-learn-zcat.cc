@@ -4,6 +4,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -48,6 +49,8 @@ struct Example {
   unordered_map<int, double> features;
 
   Example() : loss(0.0), score(0.0), label(0), features() {};
+  Example(double lo, double sc, int la) : loss(lo), score(sc), label(la), features() {};
+
 
 
   // for sorting examples
@@ -72,7 +75,8 @@ int compute_num_examples(char* filename) {
     if(feof(fp)) break;
   }
   fclose(fp);
-  wait();
+  int status;
+  wait(&status);
   return num;
 }
 
@@ -116,12 +120,19 @@ struct mira_operator
       
       for(unordered_map<int, double>::iterator j = example->features.begin(); j != end; ++j) {
 	
-	unordered_map<int, double>::iterator found = difference.find(j->first);
+	// unordered_map<int, double>::iterator found = difference.find(j->first);
 	
-	double& ref = found == difference.end() ?
-	  difference[j->first] = -j->second :
-	  difference[j->first] -= j->second;
-	norm += ref * ref;
+	// double& ref = found == difference.end() ?
+	//   difference[j->first] = -j->second :
+	//   difference[j->first] -= j->second;
+	// norm += ref * ref;
+
+
+	double&ref = difference[j->first];
+	ref -= j->second;
+	norm += ref*ref;
+
+
       }
       delta /= norm;
       alpha += delta;
@@ -158,7 +169,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
   int errors = 0;
   double avg_loss = 0;
   double one_best_loss = 0;
-  int is_one_best = 1;
+  bool is_one_best = true;
   
   vector<Example*> examples;
   Example* oracle = NULL;
@@ -172,7 +183,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
     //if line is empty -> we've read all the examples
     if(buffer[0] == '\n') {
       
-      is_one_best = 1;
+      is_one_best = true;
 
       // First count the number of errors
       //fprintf(stdout, "num examples = %d\n", examples.size());
@@ -289,7 +300,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
       if(oracle == NULL || example->loss < oracle->loss) 
        	oracle = example;
       
-      is_one_best = 0;
+      is_one_best = false;
       //fprintf(stdout, "%d %g %g\n", label, score[0], score[1]);
       //if(iteration == 1) fprintf(stdout, "%d %g %g\n", label, score[0], score[1]);
     }
@@ -301,7 +312,8 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
     weights[i] = avgWeights[i] / (num_examples * loop);
   }
   fclose(fp);
-  wait();
+  int status;
+  wait(&status);
   free(buffer);
   return 0;
 }
@@ -316,12 +328,12 @@ int main(int argc, char** argv) {
     unordered_map<string, int> features;
     int next_id = 0;
 
-    int num_examples = compute_num_examples(argv[2]);
-
     int loop = atoi(argv[1]);
 
+    int num_examples = compute_num_examples(argv[2]);
+
     fprintf(stderr, "examples: %d\n", num_examples);
-    for(unsigned iteration = 0; iteration < loop; ++iteration) {
+    for(unsigned iteration = 0; iteration < unsigned(loop); ++iteration) {
         fprintf(stderr, "iteration %d\n", iteration);
         process(argv[2], loop, weights, avgWeights, features, next_id, iteration, num_examples, true);
         if(argc >= 3) process(argv[3], loop, weights, avgWeights, features, next_id, iteration, num_examples, false);

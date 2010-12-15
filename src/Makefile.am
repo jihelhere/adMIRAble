@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = ranker-learn-zcat count count_by_sentence drop_common_features transform_logprob
+bin_PROGRAMS = ranker-learn-zcat count count_by_sentence drop_common_features transform_logprob filter filter_and_map
 
 
 ranker_learn_zcat_SOURCES = ranker-learn-zcat.cc
@@ -22,3 +22,10 @@ drop_common_features_LDFLAGS =
 transform_logprob_SOURCES = transform_logprob.c
 transform_logprob_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
 transform_logprob_LDFLAGS= -lm
+
+filter_SOURCES = filter.c hashtable.h hashtable.c
+filter_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+
+
+filter_and_map_SOURCES = filter.c hashtable.h hashtable.c
+filter_and_map_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic

@@ -5,8 +5,8 @@
 #include "vector.h"
 
 typedef struct feature {
-    int id;
-    char* value;
+  int id;
+  char* value;
 } feature_t;
 
 int feature_id_comparator(const void* a, const void* b) {
