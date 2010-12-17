@@ -1,8 +1,8 @@
 //#define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -14,15 +14,18 @@ int main(int argc, char** argv) {
         fprintf(stderr, "USAGE: %s <model> < examples\n", argv[0]);
         return 1;
     }
+
+    FILE* fp = fopen(argv[1], "r");
+    if(!fp) {
+      fprintf(stderr, "ERROR: cannot open \"%s\"\n", argv[1]);
+      return 1;
+    }
+
     vector<double> weights;
     unordered_map<string, int> features;
     int buffer_size = 1024;
     char* buffer = (char*) malloc(buffer_size);
-    FILE* fp = fopen(argv[1], "r");
-    if(!fp) {
-        fprintf(stderr, "ERROR: cannot open \"%s\"\n", argv[1]);
-        return 1;
-    }
+
     int next_id = 0;
     while(NULL != fgets(buffer, buffer_size, fp)) {
         while(buffer[strlen(buffer) - 1] != '\n') {

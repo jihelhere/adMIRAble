@@ -17,6 +17,8 @@
 #define CLIP 0.2
 #define LOOP 10
 
+static int verbose_flag = 0;
+
 //TODO: remove
 using namespace std;
 
@@ -58,9 +60,6 @@ FILE* openpipe(const char* filename) {
     return output;
 }
 
-static int verbose_flag = 0;
-
-
 struct Example {
   double loss;
   double score;
@@ -70,14 +69,11 @@ struct Example {
   Example() : loss(0.0), score(0.0), label(0), features() {};
   Example(double lo, double sc, int la) : loss(lo), score(sc), label(la), features() {};
 
-
-
   // for sorting examples
   struct example_ptr_desc_order 
   {
     bool operator()(const Example* i, const Example* j) {return (i->score > j->score);}
   };
-
 };
 
 int compute_num_examples(char* filename) {
@@ -161,6 +157,7 @@ struct mira_operator
       if(alpha > CLIP) alpha = CLIP;
       double avgalpha = alpha * avgUpdate;
 
+      //update weight vectors
       end = difference.end();
       for(unordered_map<int, double>::iterator j = difference.begin(); j != end; ++j) {
 	weights[j->first] += alpha * j->second;
@@ -172,30 +169,25 @@ struct mira_operator
  
 };
 
-
-
 int process(char* filename, int loop, vector<double> &weights, vector<double> &avgWeights, unordered_map<string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model) 
 {
-  int buffer_size = 1024;
-  char* buffer = (char*) malloc(buffer_size);
+  int num = 0;
+  int errors = 0;
+  double avg_loss = 0;
+  double one_best_loss = 0;
+  
+  vector<Example*> examples;
+  Example* oracle = NULL;
+  Example* official_oracle = NULL;
 
   FILE* fp = openpipe(filename);
-
   if(!fp) {
     fprintf(stderr, "ERROR: cannot open \"%s\"\n", filename);
     return 1;
   }
 
-  int num = 0;
-  int errors = 0;
-  double avg_loss = 0;
-  double one_best_loss = 0;
-  bool is_one_best = true;
-  
-  vector<Example*> examples;
-  Example* oracle = NULL;
-  Example* official_oracle = NULL;
-  
+  int buffer_size = 1024;
+  char* buffer = (char*) malloc(buffer_size);
   while(NULL != fgets(buffer, buffer_size, fp)) {
     
     //get a line
@@ -204,12 +196,11 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
     //if line is empty -> we've read all the examples
     if(buffer[0] == '\n') {
       
-      is_one_best = true;
-
       // First count the number of errors
       //fprintf(stdout, "num examples = %d\n", examples.size());
 
       // sort the examples by score
+      one_best_loss += examples[0]->loss;
       sort(examples.begin(), examples.end(), Example::example_ptr_desc_order());
       avg_loss += examples[0]->loss;
 
@@ -231,10 +222,8 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 	  oracle = official_oracle;
 	}
 
-
 	double alpha = 0;
 	double avgUpdate = (double)(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1);
-
 
 	// std::for_each(examples.begin(),examples.end(), mira_operator(alpha, avgUpdate, weights, avgWeights, oracle));
 	std::for_each(examples.begin(),examples.begin()+1, mira_operator(alpha, avgUpdate, weights, avgWeights, oracle));
@@ -242,53 +231,51 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 
       ++num;
       if(num % 10 == 0) fprintf(stderr, "\r%d %d %f %f/%f", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
-
+            
+      // reset data structures for next sentence
       official_oracle = NULL;
       oracle = NULL;
+      for(unsigned i = 0; i < examples.size(); ++i)
+	delete examples[i];
+      examples.clear();
 
       //fprintf(stdout, "\n");
       //if(num > 1000) break;
-
-      for(unsigned i = 0; i < examples.size(); ++i)
-	delete examples[i];
-
-      examples.clear();
     }
 
-    
     //read examples
     else{
-      char* token;
-      bool first = true;
+      bool begin_line = true;
       
       Example* example = new Example();
       examples.push_back(example);
       
-
-      string token_as_string;
-      
       // read a line and fill label/features
-      for(token = strtok(buffer, " \t"); token != NULL; token = strtok(NULL, " \t\n")) {
-	if(first) {
+      for(char* token = strtok(buffer, " \t"); token != NULL; token = strtok(NULL, " \t\n")) {
+        // first entry on the line is the label
+        // binary classification -> we only want to distinguish positive entries (label = 1)
+	if(begin_line) {
 	  if(!strcmp(token, "1")) {
 	    example->label = 1;
 	    official_oracle = example;
 	  }
-	  first = false;
+	  begin_line = false;
 	} 
+        // the rest of the line is 'feat:val' ...
 	else {
 	  char* value = strrchr(token, ':');
 	  if(value != NULL) {
 	    *value = '\0';
-	    if(!strcmp(token, "las")) {
-	      // skip las!!!
+            string token_as_string = token;
+            double value_as_double = strtod(value + 1, NULL);
+
+            //nbe is the loss, not a feature
+            if(token_as_string == "nbe") {
+	      example->loss = value_as_double;
 	    } 
-	    if(!strcmp(token, "nbe")) {
-	      example->loss = strtod(value + 1, NULL);
-	      if(is_one_best) one_best_loss += example->loss;
-	    } 
+            
 	    else {
-	      token_as_string = token;
+
 	      unordered_map<string, int>::iterator id = features.find(token_as_string);
 	      unsigned int location = 0;
 	      if(id == features.end()) {
@@ -300,28 +287,27 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 		location = id->second;
 	      }
 	      
-	      if(location+1 > weights.size()) {
-		weights.resize(location+1,0.0);
-		avgWeights.resize(location+1,0.0);
+	      if(location + 1 > weights.size()) {
+		weights.resize(location + 1, 0.0);
+		avgWeights.resize(location + 1, 0.0);
 	      }
-	      
-	      double value_as_double = strtod(value + 1, NULL);
-	      if(!isinf(value_as_double) && !isnan(value_as_double)) {
-		example->features[location] = value_as_double;
-		//fprintf(stdout, "%s %d %g\n", token, location, value_as_double);
-		//if(iteration == 1) fprintf(stdout, "%s %g %g %g\n", token, vector_last(values), weights[location], weights[location + 1]);
-		example->score += value_as_double * weights[location];
-	      }
+	    
+              assert(!isinf(value_as_double));
+              assert(!isnan(value_as_double));
+
+              example->features[location] = value_as_double;
+              //fprintf(stdout, "%s %d %g\n", token, location, value_as_double);
+              //if(iteration == 1) fprintf(stdout, "%s %g %g %g\n", token, vector_last(values), weights[location], weights[location + 1]);
+              example->score += value_as_double * weights[location];
 	    }
 	  }
 	}
       }
-
+      
       // see label = 1
       if(oracle == NULL || example->loss < oracle->loss) 
        	oracle = example;
       
-      is_one_best = false;
       //fprintf(stdout, "%d %g %g\n", label, score[0], score[1]);
       //if(iteration == 1) fprintf(stdout, "%d %g %g\n", label, score[0], score[1]);
     }
@@ -329,6 +315,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 
   fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
   
+  // averaging for next iteration
   for(unsigned int i = 0; i < weights.size(); ++i) {
     weights[i] = avgWeights[i] / (num_examples * loop);
   }
@@ -368,7 +355,7 @@ int main(int argc, char** argv) {
 	{"test",        required_argument,       0, 't'},
 	{"clip",        required_argument,       0, 'c'},
 	{"iterations",  required_argument,       0, 'i'},
-	{"mode",        required_argument,       0, 'm'},
+        //	{"mode",        required_argument,       0, 'm'},
 	{0, 0, 0, 0}
       };
     // int to store arg position
@@ -426,10 +413,10 @@ int main(int argc, char** argv) {
 	loop = atoi(optarg);
 	break;
 
-      case 'm':
-	fprintf (stderr, "mode is: %s (but I don't care ;)\n", optarg);
-	mode = optarg;
-	break;
+      // case 'm':
+      //   fprintf (stderr, "mode is: %s (but I don't care ;)\n", optarg);
+      //   mode = optarg;
+      //   break;
 
       case '?':
 	// getopt_long already printed an error message.
@@ -442,12 +429,10 @@ int main(int argc, char** argv) {
   }
 
 
-  if(trainset == NULL && !strcmp(mode, "train")) {
+  if( /*trainset == NULL &&*/ !strcmp(mode, "train")) {
     fprintf(stderr, "training mode and no trainset ? Aborting\n");
     abort();
   }  
-
-  
     vector<double> weights;
     vector<double> avgWeights;
     unordered_map<string, int> features;
@@ -471,4 +456,3 @@ int main(int argc, char** argv) {
     }
     return 0;
 }
-
