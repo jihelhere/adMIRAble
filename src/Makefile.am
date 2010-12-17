@@ -1,10 +1,14 @@
 
-bin_PROGRAMS = ranker-learn-zcat count count_by_sentence drop_common_features transform_logprob filter filter_and_map
+bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_sentence drop_common_features transform_logprob filter filter_and_map
 
 
 ranker_learn_zcat_SOURCES = ranker-learn-zcat.cc
 ranker_learn_zcat_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
 ranker_learn_zcat_LDFLAGS = -lm -lz
+
+ranker_predict_SOURCES = ranker-predict.cc
+ranker_predict_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
+ranker_predict_LDFLAGS = -lm -lz
 
 
 count_SOURCES = count.c hashtable.h hashtable.c

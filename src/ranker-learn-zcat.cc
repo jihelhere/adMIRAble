@@ -34,9 +34,6 @@ void  print_help_message(char *program_name)
   fprintf(stderr, "      -help,-h                    : print this message\n");
 }
 
-
-
-
 FILE* openpipe(const char* filename) {
     int fd[2];
     pid_t childpid;
