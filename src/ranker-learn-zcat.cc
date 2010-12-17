@@ -1,6 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <math.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -12,9 +12,30 @@
 
 #include <cassert>
 
+#include <getopt.h>
+
+#define CLIP 0.2
+#define LOOP 10
+
+//TODO: remove
+using namespace std;
+
+void  print_help_message(char *program_name)
+{
+  fprintf(stderr, "%s usage: %s [options]\n", program_name, program_name);
+  fprintf(stderr, "OPTIONS :\n");
+  fprintf(stderr, "      --train,-s <file>           : training set file\n");
+  fprintf(stderr, "      --dev,-d   <file>           : dev set file\n");
+  fprintf(stderr, "      --test,-t  <file>           : test set file\n");
+  fprintf(stderr, "      --clip,-c  <double>         : clip value (default is %f)\n", CLIP);
+  fprintf(stderr, "      --iter,-i  <int>            : nb of iterations (default is %d)\n", LOOP);
+  fprintf(stderr, "      --mode,-m  <train|predict>  : running mode\n");
+
+  fprintf(stderr, "      -help,-h                    : print this message\n");
+}
 
 
-#define CLIP 0.3
+
 
 FILE* openpipe(const char* filename) {
     int fd[2];
@@ -30,8 +51,8 @@ FILE* openpipe(const char* filename) {
     if(childpid == 0) {
         close(fd[0]);
         dup2(fd[1], STDOUT_FILENO);
-	execlp("zcat", "zcat", "-c", filename, (char*) NULL);
-	//        execlp("pigz", "pigz", "-d", "-c", filename, (char*) NULL);
+	//	execlp("zcat", "zcat", "-c", filename, (char*) NULL);
+	execlp("pigz", "pigz", "-f", "-d", "-c", filename, (char*) NULL);
         perror("openpipe/execl");
         exit(1);
     }
@@ -40,7 +61,8 @@ FILE* openpipe(const char* filename) {
     return output;
 }
 
-using namespace std;
+static int verbose_flag = 0;
+
 
 struct Example {
   double loss;
@@ -56,7 +78,7 @@ struct Example {
   // for sorting examples
   struct example_ptr_desc_order 
   {
-    bool operator()(const Example* i, const Example* j) { return (i->score > j->score ) ; }
+    bool operator()(const Example* i, const Example* j) {return (i->score > j->score);}
   };
 
 };
@@ -69,8 +91,10 @@ int compute_num_examples(char* filename) {
   char previous = '\0';
   while(previous != EOF) {
     char current = getc(fp);
-    if(previous == '\n' && current == '\n') 
+    if(previous == '\n' && current == '\n') {
       ++num;
+      fprintf(stderr, "%d\r", num);
+      }
     previous = current;
     if(feof(fp)) break;
   }
@@ -102,6 +126,13 @@ struct mira_operator
   mira_operator(double& alpha_, double avgUpdate_, std::vector<double> &weights_, std::vector<double> &avgWeights_, Example* oracle_)
     : alpha(alpha_), avgUpdate(avgUpdate_), weights(weights_), avgWeights(avgWeights_), oracle(oracle_) {};
 
+  inline
+  bool incorrect_rank(const Example * example) 
+  {
+    return example->score > oracle->score || 
+      (example->score == oracle->score && example->loss > oracle->loss);
+  }
+
 
   void operator()(Example * example)
   {
@@ -111,29 +142,22 @@ struct mira_operator
     if(example == oracle) return;
     
     
-    if(example->score > oracle->score || (example->score == oracle->score && example->loss > oracle->loss)) {
+    if(incorrect_rank(example)) {
+
       double delta = example->loss - oracle->loss - (oracle->score - example->score);
+    
+      //copy
       unordered_map<int, double> difference = oracle->features;
       double norm = 0;
       
       unordered_map<int, double>::iterator end = example->features.end();
       
       for(unordered_map<int, double>::iterator j = example->features.begin(); j != end; ++j) {
-	
-	// unordered_map<int, double>::iterator found = difference.find(j->first);
-	
-	// double& ref = found == difference.end() ?
-	//   difference[j->first] = -j->second :
-	//   difference[j->first] -= j->second;
-	// norm += ref * ref;
-
-
 	double&ref = difference[j->first];
 	ref -= j->second;
 	norm += ref*ref;
-
-
       }
+
       delta /= norm;
       alpha += delta;
       if(alpha < 0) alpha = 0;
@@ -319,25 +343,127 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 }
 
 int main(int argc, char** argv) {
-    if(argc < 3 || argc > 5) {
-        fprintf(stderr, "USAGE: %s <nb_iter> <train> [dev] [test]\n", argv[0]);
-        return 1;
-    }
+
+  char * trainset = NULL;
+  char * devset = NULL;
+  char * testset = NULL;
+  double clip = CLIP;
+  int loop = LOOP;
+
+  char mode_def[] = "train";
+  char * mode = mode_def;
+
+
+  // read the commandline
+  int c;
+  
+  while(1) {
+    
+    static struct option long_options[] =
+      {
+	/* These options set a flag. */
+	{"verbose", no_argument,       &verbose_flag, 1},
+	/* These options don't set a flag.
+	   We distinguish them by their indices. */
+	{"help",        no_argument,             0, 'h'},
+	{"train",       required_argument,       0, 's'},
+	{"dev",         required_argument,       0, 'd'},
+	{"test",        required_argument,       0, 't'},
+	{"clip",        required_argument,       0, 'c'},
+	{"iterations",  required_argument,       0, 'i'},
+	{"mode",        required_argument,       0, 'm'},
+	{0, 0, 0, 0}
+      };
+    // int to store arg position
+    int option_index = 0;
+    
+    c = getopt_long (argc, argv, "s:d:t:c:i:m:h", long_options, &option_index);
+
+    // Detect the end of the options
+    if (c == -1)
+      break;
+     
+    switch (c)
+      {
+      case 0:
+	// If this option set a flag, do nothing else now.
+	if (long_options[option_index].flag != 0)
+	  break;
+	fprintf(stderr, "option %s", long_options[option_index].name);
+	if (optarg)
+	  fprintf(stderr, " with arg %s", optarg);
+	fprintf (stderr, "\n");
+	break;
+     
+
+      case 'h':
+	print_help_message(argv[0]);
+	exit(0);
+
+      case 's':
+	if(trainset) fprintf (stderr, "redefining ");
+	fprintf (stderr, "training set filename: %s\n", optarg);
+	trainset = optarg;
+	break;
+     
+      case 'd':
+	if(devset) fprintf (stderr, "redefining ");
+	fprintf (stderr, "dev set filename: %s\n", optarg);
+	devset = optarg;
+	break;
+
+      case 't':
+	if(testset) fprintf (stderr, "redefining ");
+	fprintf (stderr, "test set filename: %s\n", optarg);
+	testset = optarg;
+	break;
+
+
+      case 'c':
+	fprintf (stderr, "clip value: %s\n", optarg);
+	clip = strtod(optarg, NULL);
+	break;
+
+      case 'i':
+	fprintf (stderr, "number of iterations: %s\n", optarg);
+	loop = atoi(optarg);
+	break;
+
+      case 'm':
+	fprintf (stderr, "mode is: %s (but I don't care ;)\n", optarg);
+	mode = optarg;
+	break;
+
+      case '?':
+	// getopt_long already printed an error message.
+	break;
+     
+      default:
+	abort ();
+      }
+
+  }
+
+
+  if(trainset == NULL && !strcmp(mode, "train")) {
+    fprintf(stderr, "training mode and no trainset ? Aborting\n");
+    abort();
+  }  
+
+  
     vector<double> weights;
     vector<double> avgWeights;
     unordered_map<string, int> features;
     int next_id = 0;
 
-    int loop = atoi(argv[1]);
-
-    int num_examples = compute_num_examples(argv[2]);
+    int num_examples = compute_num_examples(trainset);
 
     fprintf(stderr, "examples: %d\n", num_examples);
     for(unsigned iteration = 0; iteration < unsigned(loop); ++iteration) {
         fprintf(stderr, "iteration %d\n", iteration);
-        process(argv[2], loop, weights, avgWeights, features, next_id, iteration, num_examples, true);
-        if(argc >= 3) process(argv[3], loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
-        if(argc >= 4) process(argv[4], loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
+        process(trainset, loop, weights, avgWeights, features, next_id, iteration, num_examples, true);
+        if(devset) process(devset, loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
+        if(trainset) process(testset, loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
     }
 
     unordered_map<string, int>::iterator end = features.end();
