@@ -18,8 +18,12 @@ count_SOURCES = count.c hashtable.h hashtable.c
 count_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
 count_LDFLAGS = 
 
-count_by_sentence_SOURCES = count_by_sentence.c hashtable.h hashtable.c
-count_by_sentence_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+# count_by_sentence_SOURCES = count_by_sentence.c hashtable.h hashtable.c
+# count_by_sentence_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+# count_by_sentence_LDFLAGS = 
+
+count_by_sentence_SOURCES = count_by_sentence.cc
+count_by_sentence_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
 count_by_sentence_LDFLAGS = 
 
 drop_common_features_SOURCES = drop_common_features.c vector.h hashtable.h hashtable.c
