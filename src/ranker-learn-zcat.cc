@@ -48,8 +48,8 @@ FILE* openpipe(const char* filename) {
     if(childpid == 0) {
         close(fd[0]);
         dup2(fd[1], STDOUT_FILENO);
-	//	execlp("zcat", "zcat", "-c", filename, (char*) NULL);
-	execlp("pigz", "pigz", "-f", "-d", "-c", filename, (char*) NULL);
+	execlp("zcat", "zcat", "-c", filename, (char*) NULL);
+	//execlp("pigz", "pigz", "-f", "-d", "-c", filename, (char*) NULL);
         perror("openpipe/execl");
         exit(1);
     }
@@ -466,7 +466,7 @@ int main(int argc, char** argv) {
     unordered_map<string, int>::iterator end = features.end();
     for( unordered_map<string, int>::iterator i = features.begin(); i != end; ++i) {
       if(weights[i->second] != 0) {
-	fprintf(stdout, "%s 0 %g\n", i->first.c_str(), weights[i->second]);
+	fprintf(stdout, "%s 0 %32.31g\n", i->first.c_str(), weights[i->second]);
       }
     }
     return 0;
