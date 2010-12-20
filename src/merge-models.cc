@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
         close_pipe(input);
     }
     for(unordered_map<string, double>::iterator current = model.begin(); current != model.end(); current++) {
-        fprintf(stdout, "%s %32.31g\n", (*current).first.c_str(), (*current).second);
+        fprintf(stdout, "%s %32.31g\n", (*current).first.c_str(), (*current).second / (argc - 1));
     }
     return 0;
 }

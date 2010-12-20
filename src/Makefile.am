@@ -1,5 +1,5 @@
 
-bin_PROGRAMS = ranker-learn-zcat count count_by_sentence drop_common_features transform_logprob filter filter_and_map
+bin_PROGRAMS = ranker-learn-zcat count count_by_sentence drop_common_features transform_logprob filter filter_and_map test_utils split merge-models
 
 
 ranker_learn_zcat_SOURCES = ranker-learn-zcat.cc
@@ -29,3 +29,12 @@ filter_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
 
 filter_and_map_SOURCES = filter.c hashtable.h hashtable.c
 filter_and_map_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
+
+test_utils_SOURCES = test_utils.c utils.c
+test_utils_CFLAGS = -Wall -Wextra -g 
+
+split_SOURCES = split.cc utils.c
+split_CXXFLAGS = -O2 -Wall -Wextra -g 
+
+merge_models_SOURCES = merge-models.cc utils.c
+merge_models_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x
