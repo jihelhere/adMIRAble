@@ -329,7 +329,7 @@ int main(int argc, char** argv) {
         // int to store arg position
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "v:h:i:n:e:c:d:m", long_options, &option_index);
+        c = getopt_long (argc, argv, "v:h:i:n:e:c:t:m", long_options, &option_index);
 
         // Detect the end of the options
         if (c == -1)

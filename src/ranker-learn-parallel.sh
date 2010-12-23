@@ -11,21 +11,29 @@ iterations=$2
 clip=$3
 trainingset=$4
 model=$5
-tmp=ranker-learn.$$
+tmp=ranker-learn.6414
+dir=`dirname $0`
 
 function clean() {
-    rm $tmp.*
+    echo clean
+    #rm $tmp.*
+    exit 1
 }
 
-trap INT clean
+trap clean SIGINT SIGTERM
 
-./split $trainingset $numjobs $tmp.training.
+examples=`$dir/split $trainingset $numjobs $tmp.training`
+echo $examples
+#examples=1235
+
+# reset model
+echo -n > $model
 
 for iteration in `seq $iterations`
 do
-    for data in $tmp.training.*
+    for data in $tmp.training.*.gz
     do
-        echo ./ranker-learn-iteration $iteration $iterations $clip $data $model > $data.$iteration.model
-    done | parallel -j $numjobs
-    ./merge-models $tmp.training.*.$iteration.model > $model
+        echo "$dir/ranker-learn-iteration -e $examples -i $(expr $iteration - 1) -n $iterations -c $clip -t $data -m $model > $data.$iteration.model"
+    done | tee -a /dev/stderr | parallel -j $numjobs
+    $dir/merge-models $tmp.training.*.$iteration.model > $model
 done
