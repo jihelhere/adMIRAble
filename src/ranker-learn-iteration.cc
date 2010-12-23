@@ -119,7 +119,7 @@ struct mira_operator
 
 
 
-int process(char* filename, int loop, vector<double> &weights, vector<double> &avgWeights, unordered_map<string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model) 
+int process(char* filename, int num_iterations, vector<double> &weights, vector<double> &avgWeights, unordered_map<string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model) 
 {
     int buffer_size = 1024;
     char* buffer = (char*) malloc(buffer_size);
@@ -175,7 +175,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 
 
                 double alpha = 0;
-                double avgUpdate = (double)(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1);
+                double avgUpdate = (double)(num_iterations * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1);
 
 
                 // std::for_each(examples.begin(),examples.end(), mira_operator(alpha, avgUpdate, weights, avgWeights, oracle));
@@ -272,7 +272,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
     fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
 
     for(unsigned int i = 0; i < weights.size(); ++i) {
-        weights[i] = avgWeights[i] / (num_examples * loop);
+        weights[i] = avgWeights[i] / (num_examples * num_iterations);
     }
     fclose(fp);
     int status;
@@ -329,7 +329,7 @@ int main(int argc, char** argv) {
         // int to store arg position
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "v:h:i:n:e:c:t:m", long_options, &option_index);
+        c = getopt_long (argc, argv, "vhi:n:e:c:m:t:", long_options, &option_index);
 
         // Detect the end of the options
         if (c == -1)
@@ -399,7 +399,11 @@ int main(int argc, char** argv) {
     unordered_map<string, int> features;
     int next_id = 0;
 
+    if(num_examples == -1)
+        num_examples = compute_num_examples(trainset);
+
     if(model != NULL) {
+        fprintf(stderr, "loading model %s\n", model);
         FILE* fp = fopen(model, "r");
         if(!fp) {
             fprintf(stderr, "ERROR: cannot open \"%s\"\n", argv[1]);
@@ -415,15 +419,13 @@ int main(int argc, char** argv) {
             double value = strtod(weight + 1, NULL);
             features[string(buffer)] = next_id;
             weights.push_back(value);
-            avgWeights.push_back(value);
+            avgWeights.push_back(value * (num_examples * num_iterations));
             next_id++;
         }
+        fprintf(stderr, "loaded %d feature weights\n", next_id);
         fclose(fp);
         free(buffer);
     }
-
-    if(num_examples == -1)
-        num_examples = compute_num_examples(trainset);
 
     fprintf(stderr, "examples: %d\n", num_examples);
     fprintf(stderr, "iteration %d\n", iteration);
@@ -433,7 +435,7 @@ int main(int argc, char** argv) {
     unordered_map<string, int>::iterator end = features.end();
     for( unordered_map<string, int>::iterator i = features.begin(); i != end; ++i) {
         if(weights[i->second] != 0) {
-            fprintf(stdout, "%s %g\n", i->first.c_str(), weights[i->second]);
+            fprintf(stdout, "%s %32.31g\n", i->first.c_str(), weights[i->second]);
         }
     }
     return 0;

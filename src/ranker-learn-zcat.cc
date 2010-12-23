@@ -374,7 +374,7 @@ int main(int argc, char** argv) {
     // int to store arg position
     int option_index = 0;
     
-    c = getopt_long (argc, argv, "s:d:t:c:i:m:h", long_options, &option_index);
+    c = getopt_long (argc, argv, "s:d:t:c:i:m:hv", long_options, &option_index);
 
     // Detect the end of the options
     if (c == -1)
@@ -460,7 +460,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "iteration %d\n", iteration);
         process(trainset, loop, weights, avgWeights, features, next_id, iteration, num_examples, true);
         if(devset) process(devset, loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
-        if(trainset) process(testset, loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
+        if(testset) process(testset, loop, weights, avgWeights, features, next_id, iteration, num_examples, false);
     }
 
     unordered_map<string, int>::iterator end = features.end();

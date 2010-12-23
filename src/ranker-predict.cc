@@ -34,10 +34,14 @@ int main(int argc, char** argv) {
         char* weight1 = strchr(buffer, ' ');
         *weight1 = '\0';
         char* weight2 = strchr(weight1 + 1, ' ');
-        *weight2 = '\0';
         features[string(buffer)] = next_id;
-        //weights.push_back(strtod(weight1 + 1, NULL));
-        weights.push_back(strtod(weight2 + 1, NULL));
+        if(weight2 != NULL) {
+            *weight2 = '\0';
+            //weights.push_back(strtod(weight1 + 1, NULL));
+            weights.push_back(strtod(weight2 + 1, NULL));
+        } else {
+            weights.push_back(strtod(weight1 + 1, NULL));
+        }
         next_id++;
     }
     fclose(fp);
