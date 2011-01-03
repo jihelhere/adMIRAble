@@ -47,6 +47,9 @@ int main(int argc, char** argv) {
         }
         next_id++;
     }
+
+    fprintf(stderr, "feature weight read successfully\n");
+
     fclose(fp);
     int num = 0;
     double avg_loss = 0;

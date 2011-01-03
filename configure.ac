@@ -8,8 +8,12 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
+CXXFLAGS=""
 AC_PROG_CXX
 AC_PROG_CC
+
+AC_SUBST(CXXFLAGS)
+AC_SUBST(LDFLAGS)
 
 # Checks for libraries.
 
