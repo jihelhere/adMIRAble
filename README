@@ -15,6 +15,6 @@
    Each instance must be separated by a blank line.
 
 *** Remark
-    A feature named 'nbe' (as in number of errors) will be treated as the loss of the current example.
+    A feature named 'nbe' (as in 'number of errors') will be treated as the loss of the current example.
 
     
