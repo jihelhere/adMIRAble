@@ -4,13 +4,22 @@
 #include "hashtable.h"
 #include "vector.h"
 
-int main(int argc, char** argv) {
-    hashtable_t* hashtable = hashtable_new(10000);
-    char** lines;
-    vector_new(char*, lines, 20);
+
+
+int always_keep(char * token)
+{
+  return 
+    !strcmp(token, "prob") || !strcmp(token, "nbe");
+}
+
+
+int main() {
+    hashtable_t* hashtable = hashtable_new(1000000);
     int buffer_size = 1024;
     char* buffer = malloc(buffer_size);
-    int skipped = 0, total = 0;
+    long int skipped = 0, total = 0;
+    char** lines;
+    vector_new(char*, lines, 20);
     while(NULL != fgets(buffer, buffer_size, stdin)) {
         while(buffer[strlen(buffer) - 1] != '\n') {
             buffer_size *= 2;
@@ -30,15 +39,21 @@ int main(int argc, char** argv) {
                         char* end = strrchr(token, ':');
                         if(end != NULL) {
                             *end = '\0';
-                            int count = hashtable_get(hashtable, token).int_value;
-                            if(strcmp(end + 1, "1") != 0 || count != vector_length(lines)) { // skip features appearing everywhere execpt those with a real value
-                                *end = ':';
-                                fprintf(stdout, " %s", token);
-                            } else {
-                                skipped++;
-                            }
-                            total ++;
-                        }
+			    if(always_keep(token)) {
+			      *end = ':';
+			      fprintf(stdout, " %s", token);
+			    }
+			    else {
+			      *end = ':';
+			      int count = hashtable_get(hashtable, token).int_value;
+			      if(count != vector_length(lines)) {
+				fprintf(stdout, " %s", token);
+			      }
+			      else 
+				++skipped;
+			    }
+			}
+			++total;
                     }
                 }
                 fprintf(stdout, "\n");
@@ -56,11 +71,11 @@ int main(int argc, char** argv) {
                 if(first == 1) {
                     first = 0;
                 } else {
-                    char* end = strrchr(token, ':');
-                    if(end != NULL) {
-                        *end = '\0';
+                    /* char* end = strrchr(token, ':'); */
+                    /* if(end != NULL) { */
+                    /*     *end = '\0'; */
                         hashtable_inc(hashtable, token, (value_t) 1, (value_t) 1);
-                    }
+			/* } */
                 }
             }
         }
@@ -74,6 +89,6 @@ int main(int argc, char** argv) {
     }
     hashtable_free(hashtable);
     vector_free(lines);
-    fprintf(stderr, "skipped %d/%d features (%.2f%%)\n", skipped, total, 100.0 * skipped / (double) total);
+    fprintf(stderr, "skipped %ld/%ld features (%.2f%%)\n", skipped, total, 100.0 * skipped / (double) total);
     return 0;
 }
