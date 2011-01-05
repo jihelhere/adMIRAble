@@ -112,7 +112,7 @@ int close_pipe(FILE* fp) {
     return status;
 }
 
-int read_example_line(char** buffer, int* buffer_size, FILE* fp)
+int read_line(char** buffer, int* buffer_size, FILE* fp)
 {
     if(NULL == fgets(*buffer, *buffer_size, fp)) return 0;
     while((*buffer)[strlen(*buffer) - 1] != '\n') {

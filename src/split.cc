@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     asprintf(&output_filename, "%s.%d.gz", argv[3], current_shard);
     FILE* output = open_pipe(output_filename, "w");
     std::vector<char*> lines;
-    while(read_example_line(&buffer, &buffer_size, input)) {
+    while(read_line(&buffer, &buffer_size, input)) {
         if(buffer[0] == '\n') {
             int i;
             for(i = 0; i < (int) lines.size(); ++i) {

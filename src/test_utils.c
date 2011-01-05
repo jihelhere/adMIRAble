@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     }
     int buffer_size = 1024;
     char* buffer = (char*) malloc(buffer_size);
-    while(read_example_line(&buffer, &buffer_size, input)) {
+    while(read_line(&buffer, &buffer_size, input)) {
         fprintf(output, "%s", buffer);
     }
     close_pipe(output);

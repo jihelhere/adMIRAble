@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <math.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -14,17 +13,17 @@
 
 #include <getopt.h>
 
-
 #include <thread>
 
+#include "utils.h"
+#include "Example.hh"
+#include "ExampleMaker.hh"
+#include "MiraOperator.hh"
 
-#define CLIP 0.2
+#define CLIP 0.05
 #define LOOP 10
 
 static int verbose_flag = 0;
-
-//TODO: remove
-using namespace std;
 
 void  print_help_message(char *program_name)
 {
@@ -64,36 +63,7 @@ FILE* openpipe(const char* filename) {
   return output;
 }
 
-void read_example_line(char*& buffer, int& buffer_size, FILE*& fp)
-{
-  while(buffer[strlen(buffer) - 1] != '\n') {
-    buffer_size *= 2;
-    buffer = (char*) realloc(buffer, buffer_size);
-    if(fgets(buffer + strlen(buffer), buffer_size - strlen(buffer), fp) == NULL) break;
-  }
-}
-
-
-struct Example {
-  double loss;
-  double score;
-  int label;
-  unordered_map<int, double> features;
-
-  Example() : loss(0.0), score(0.0), label(0), features() {};
-
-  // for sorting examples
-  struct example_ptr_desc_order 
-  {
-    bool operator()(const Example* i, const Example* j) {return (i->score > j->score);}
-  };
-};
-
-
-
-
-int compute_num_examples(const char* filename,
-                         std::unordered_map<std::string,int>& features)
+int compute_num_examples(const char* filename, std::unordered_map<std::string,int>& features)
 {
   FILE* fp = openpipe(filename);
   if(!fp) return 0;
@@ -102,10 +72,8 @@ int compute_num_examples(const char* filename,
   
   int buffer_size = 1024;
   char* buffer = (char*) malloc(buffer_size);
-  while(NULL != fgets(buffer, buffer_size, fp)) {
-    //get a line
-    read_example_line(buffer,buffer_size,fp);
-
+  while(read_line(&buffer,&buffer_size,fp)) {
+    
     //if line is empty -> we've read all the examples
     if(buffer[0] == '\n') {
       ++num;
@@ -124,7 +92,8 @@ int compute_num_examples(const char* filename,
         char* value = strrchr(token, ':');
         if(value != NULL) {
           *value = '\0';
-          string token_as_string = token;
+	  std::string token_as_string = token;
+
 	  if (token_as_string != "nbe")
 	    features.insert(std::make_pair(token_as_string, features.size()));
 
@@ -132,11 +101,6 @@ int compute_num_examples(const char* filename,
 	  //   if(features.insert(std::make_pair(token_as_string, features.size())).second)
 	  //     fprintf(stderr, "adding feature %s\n", token_as_string.c_str());
 
-
-	  //if(features.find(token_as_string) == features.end() && token_as_string != "nbe") {
-	  //    fprintf(stderr, "adding feature %s\n", token_as_string.c_str());
-	  //features[token_as_string] = features.size();
-          //}
         }
       }
     }
@@ -146,167 +110,12 @@ int compute_num_examples(const char* filename,
   wait(&status);
   free(buffer);
   fclose(fp);
-  
-  
+    
   return num;
 }
 
 
-struct mira_operator
-{
-  double avgUpdate;
-
-  double clip;
-  std::vector<double> &weights;
-  std::vector<double> &avgWeights;
-  Example* oracle;
-
-  mira_operator(int loop, int num_examples, int iteration, int num, double clip_,
-		std::vector<double> &weights_, std::vector<double> &avgWeights_, 
-		Example* oracle_)
-    : 
-    avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1)),
-    //    avgUpdate(1),
-    clip(clip_),
-    weights(weights_), avgWeights(avgWeights_), oracle(oracle_)
-  {};
-
-  inline
-  bool incorrect_rank(const Example * example) 
-  {
-    return example->score > oracle->score || 
-      (example->score == oracle->score && example->loss > oracle->loss);
-  }
-
-
-  void operator()(Example * example)
-  {
-    //fprintf(stdout, "%g %g\n", example->score, example->loss);
-    
-    // skip the oracle -> useless update
-    if(example == oracle) return;
-    
-    
-    if(incorrect_rank(example)) {
-      double alpha = 0.0;
-      double delta = example->loss - oracle->loss - (oracle->score - example->score);
-    
-      //copy
-      unordered_map<int, double> difference = oracle->features;
-      double norm = 0;
-      
-      unordered_map<int, double>::iterator end = example->features.end();
-      
-      for(unordered_map<int, double>::iterator j = example->features.begin(); j != end; ++j) {
-	double&ref = difference[j->first];
-	ref -= j->second;
-	norm += ref*ref;
-      }
-
-      delta /= norm;
-      alpha += delta;
-      if(alpha < 0) alpha = 0;
-      if(alpha > clip) alpha = clip;
-      double avgalpha = alpha * avgUpdate;
-
-      //update weight vectors
-      end = difference.end();
-      for(unordered_map<int, double>::iterator j = difference.begin(); j != end; ++j) {
-	weights[j->first] += alpha * j->second;
-	avgWeights[j->first] += avgalpha * j->second;
-      }
-    }
-  }
-};
-
-
-// create an example from a line 'label fts:val .... fts:val'
-// side-effects : update size of weights and avgweights
-// unknown features are *ignored*
-Example * fill_example(char*& buffer, const std::unordered_map<std::string,int>& features,
-                       std::vector<double>& weights)
-{
-  Example * example = new Example();
-
-  // read a line and fill label/features
-
-  char * inputstring = buffer;
-  char *token = NULL; 
-  if ((token =  strsep(&inputstring, " \t")) != NULL) {
-    if(!strcmp(token, "1")) {
-      example->label = 1;
-    }
-  } 
-
-  for(;(token = strsep(&inputstring, " \t\n"));) {
-    if(!strcmp(token,"")) continue;
-    
-    char* value = strrchr(token, ':');
-    if(value != NULL) {
-      *value = '\0';
-      string token_as_string = token;
-      double value_as_double = strtod(value + 1, NULL);
-
-      assert(!isinf(value_as_double));
-      assert(!isnan(value_as_double));
-      
-      //nbe is the loss, not a feature
-      if(token_as_string == "nbe") {
-	example->loss = value_as_double;
-      } 
-      
-      else {
-	if(features.find(token_as_string) == features.end()) {
-	  // fprintf(stderr, "could not find %s\n", token_as_string.c_str());
-	  continue;
-	}
-
-	unsigned int location = features.at(token_as_string);
-        
-	example->features[location] = value_as_double;
-	example->score += value_as_double * weights[location];
-      }
-    }
-  }
-  return example;
-}
-
-
-struct ExampleMaker
-{
-  std::thread my_thread;
-
-  char* buffer;
-  const std::unordered_map<std::string,int>& features;
-  std::vector<double>& weights;
-
-  Example * example;
-
-
-  ExampleMaker(char* b, const std::unordered_map<std::string,int>& f, std::vector<double>& w)
-    : buffer(b), features(f), weights(w), example(NULL) {};
-
-  ~ExampleMaker() { free(buffer);}
-
-  void join() {my_thread.join();}
-
-
-  void create_example()
-  {
-    char * b = buffer;
-    example = fill_example(b, features, weights)  ;
-  }
-
-  void start()
-  {
-    my_thread = std::thread(&ExampleMaker::create_example, this);
-  }
-  
-};
-
-
-
-int process(char* filename, int loop, vector<double> &weights, vector<double> &avgWeights, const unordered_map<string, int> &features, int iteration, 
+int process(char* filename, int loop, std::vector<double> &weights, std::vector<double> &avgWeights, const std::unordered_map<std::string, int> &features, int iteration, 
 	    int num_examples, double clip, bool alter_model) 
 {
   int num = 0;
@@ -314,10 +123,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
   double avg_loss = 0;
   double one_best_loss = 0;
   
-  std::vector<ExampleMaker*> examplemakers;
-
-  
-
+  std::vector<example_maker*> examplemakers;
 
   FILE* fp = openpipe(filename);
   if(!fp) {
@@ -327,10 +133,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 
   int buffer_size = 1024;
   char* buffer = (char*) malloc(buffer_size);
-  while(NULL != fgets(buffer, buffer_size, fp)) {
-    
-    //get a line
-    read_example_line(buffer,buffer_size,fp);
+  while(read_line(&buffer, &buffer_size, fp)) {
     
     //if line is empty -> we've read all the examples
     if(buffer[0] == '\n') {
@@ -339,13 +142,13 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
       for(auto i = examplemakers.begin(); i != examplemakers.end(); ++i)
 	(*i)->join();
 
-      std::vector<Example*> examples(examplemakers.size(), NULL);
-      Example* oracle = NULL;
+      std::vector<example*> examples(examplemakers.size(), NULL);
+      example* oracle = NULL;
 
       //      fprintf(stderr, "creating vectors of examples\n");
       //      fprintf(stderr, "retrieveing oracle \n");
       for(unsigned i = 0; i < examples.size(); ++i) {
-	examples[i] = examplemakers[i]->example;
+	examples[i] = examplemakers[i]->my_example;
 	if(oracle == NULL || examples[i]->loss < oracle->loss) 
 	  oracle = examples[i];
       }
@@ -355,7 +158,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
       
       // sort the examples by score
       one_best_loss += examples[0]->loss;
-      sort(examples.begin(), examples.end(), Example::example_ptr_desc_order());
+      sort(examples.begin(), examples.end(), example::example_ptr_desc_order());
       avg_loss += examples[0]->loss;
       
       for(unsigned int i = 0; i < examples.size(); ++i) {
@@ -383,19 +186,15 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
 	delete examples[i];
 	delete examplemakers[i];
       }
-      //      examples.clear();
       examplemakers.clear();
 
-
-      //fprintf(stdout, "\n");
-      //if(num > 1000) break;
     }
     
     //read examples
     else{
       char * copy = strdup(buffer);
-      ExampleMaker * em = new ExampleMaker(copy, features,weights);
-
+      example_maker * em = new example_maker(copy, features,weights);
+      
       examplemakers.push_back(em);
       em->start();
     }
@@ -409,12 +208,7 @@ int process(char* filename, int loop, vector<double> &weights, vector<double> &a
       if(avgWeights[i] != 0.0)
 	weights[i] = avgWeights[i] / (num_examples * loop);
     }
-
-    // for(unsigned int i = 0; i < avgWeights.size(); ++i) {
-    //   avgWeights[i] += weights[i];
-    // }
-
-
+  
   fclose(fp);
   int status;
   wait(&status);
@@ -528,23 +322,21 @@ int main(int argc, char** argv) {
   if( trainset == NULL /* && !strcmp(mode, "train") */) {
     fprintf(stderr, "training mode and no trainset ? Aborting\n");
     abort();
-  }  
-    unordered_map<string, int> features;
+  } 
+ 
+  // mapping : feature name -> int
+  std::unordered_map<std::string, int> features;
 
+    // why not ?
     features.rehash(10*4659276);
-
     features.max_load_factor(0.5);
-
-  
 
     int num_examples = compute_num_examples(trainset, features);
 
     fprintf(stderr, "Number of features: %lu\n", features.size());
 
-    //    features.rehash(10*features.size());
-
-    vector<double> weights(features.size(), 0.0);
-    vector<double> avgWeights(features.size(), 0.0);
+    std::vector<double> weights(features.size(), 0.0);
+    std::vector<double> avgWeights(features.size(), 0.0);
 
 
     fprintf(stderr, "examples: %d\n", num_examples);
@@ -557,13 +349,8 @@ int main(int argc, char** argv) {
         process(testset, loop, weights, avgWeights, features, iteration, num_examples, clip, false);
     }
 
-    unordered_map<string, int>::iterator end = features.end();
-    // for( unordered_map<string, int>::iterator i = features.begin(); i != end; ++i) {
-    //   if(avgWeights[i->second] != 0) {
-    // 	fprintf(stdout, "%s 0 %32.31g\n", i->first.c_str(), avgWeights[i->second] / loop);
-    //   }
-    // }
-    for( unordered_map<string, int>::iterator i = features.begin(); i != end; ++i) {
+    auto end = features.end();
+    for(auto i = features.begin(); i != end; ++i) {
       if(weights[i->second] != 0) {
 	fprintf(stdout, "%s 0 %32.31g\n", i->first.c_str(), weights[i->second] );
       }

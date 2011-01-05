@@ -10,7 +10,7 @@ extern "C" {
 
 FILE* open_pipe(const char* filename, const char* mode);
 int close_pipe(FILE* fp);
-int read_example_line(char** buffer, int* buffer_size, FILE* fp);
+int read_line(char** buffer, int* buffer_size, FILE* fp);
 
 #ifdef __cplusplus
 }
