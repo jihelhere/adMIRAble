@@ -51,21 +51,23 @@ struct example {
 	//nbe is the loss, not a feature
 	if(!strcmp(token, "nbe")) {
 	  this->loss = value_as_double;
-	} else {
-            int location = strtol(token, NULL, 10);
-            if(location >= (int) weights.size()) weights.resize(location, 0);
-          features.push_back(feature(location, value_as_double));
-	  this->score += value_as_double * weights[location];
-	}
+    } else {
+        int location = strtol(token, NULL, 10);
+        if(location >= (int) weights.size()) weights.resize(location + 1, 0);
+        features.push_back(feature(location, value_as_double));
+        this->score += value_as_double * weights[location];
+        //fprintf(stderr, "%d:%g ", location, value_as_double);
+    }
       }
     }
+    //fprintf(stderr, "\n");
   }
-  
-  
+
+
   // for sorting examples
   struct example_ptr_desc_order 
   {
-    bool operator()(const example* i, const example* j) {return (i->score > j->score);}
+      bool operator()(const example* i, const example* j) {return (i->score > j->score);}
   };
 };
 

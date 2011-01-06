@@ -23,7 +23,7 @@ struct example_maker
   ~example_maker() { free(buffer);}
 
   void join() {
-      //my_thread.join();
+     my_thread.join();
 }
 
 
@@ -35,8 +35,8 @@ struct example_maker
 
   void start()
   {
-    //my_thread = std::thread(&example_maker::create_example, this);
-    create_example();
+    my_thread = std::thread(&example_maker::create_example, this);
+    //create_example();
   }
   
 };
