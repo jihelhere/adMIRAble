@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 #include "Example.hh"
 
@@ -38,23 +39,34 @@ struct mira_operator
     
     // skip the oracle -> useless update
     if(example == oracle) return;
+    if(avgWeights.size() < weights.size()) avgWeights.resize(weights.size(), 0);
     
     
+    sort(example->features.begin(), example->features.end());
     if(incorrect_rank(example)) {
       double alpha = 0.0;
       double delta = example->loss - oracle->loss - (oracle->score - example->score);
     
       //copy
-      std::unordered_map<int, double> difference = oracle->features;
+      auto i = oracle->features.begin(), j = example->features.begin();
       double norm = 0;
       
-      std::unordered_map<int, double>::iterator end = example->features.end();
-      
-      for(auto j = example->features.begin(); j != end; ++j) {
-	double&ref = difference[j->first];
-	ref -= j->second;
-	norm += ref*ref;
+      while(i != oracle->features.end() && j != example->features.end()) {
+          if(i->id < j->id) {
+              norm += i->value * i->value;
+              i++;
+          } else if(j->id < i->id) {
+              norm += j->value * j->value;
+              j++;
+          } else {
+              double difference = i->value - j->value;
+              norm += difference * difference;
+              i++;
+              j++;
+          }
       }
+      while(i != oracle->features.end()) { norm += i->value * i->value; i++; }
+      while(j != example->features.end()) { norm += j->value * j->value; j++; }
 
       delta /= norm;
       alpha += delta;
@@ -63,10 +75,17 @@ struct mira_operator
       double avgalpha = alpha * avgUpdate;
 
       //update weight vectors
-      end = difference.end();
-      for(auto j = difference.begin(); j != end; ++j) {
-	weights[j->first] += alpha * j->second;
-	avgWeights[j->first] += avgalpha * j->second;
+      i = oracle->features.begin();
+      while(i != oracle->features.end()) {
+          weights[i->id] += alpha * i->value;
+          avgWeights[i->id] += avgalpha * i->value;
+          i++;
+      }
+      j = example->features.begin();
+      while(j != example->features.end()) {
+          weights[j->id] -= alpha * j->value;
+          avgWeights[j->id] -= avgalpha * j->value;
+          j++;
       }
     }
   }

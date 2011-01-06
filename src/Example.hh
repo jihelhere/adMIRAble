@@ -1,16 +1,22 @@
-#ifndef _EXAMPLE_H_
-#define _EXAMPLE_H_
+#pragma once
 
 #include <vector>
-#include <unordered_map>
 #include <string>
 
+struct feature {
+    int id;
+    double value;
+    feature(int _id, double _value) : id(_id), value(_value) {};
+    bool operator<(const feature &peer) const {
+        return value < peer.value;
+    }
+};
 
 struct example {
   double loss;
   double score;
   int label;
-  std::unordered_map<int, double> features;
+  std::vector<feature> features;
   
   example() : loss(0.0), score(0.0), label(0), features() {};
 
@@ -18,8 +24,7 @@ struct example {
   // create an example from a line 'label fts:val .... fts:val'
   // side-effects : update size of weights and avgweights
   // unknown features are *ignored*
-  example(char*& buffer, const std::unordered_map<std::string,int>& features,
-	  std::vector<double>& weights)
+  example(char*& buffer, std::vector<double>& weights)
     : loss(0.0), score(0.0), label(0), features()
   {
     // read a line and fill label/features
@@ -38,26 +43,18 @@ struct example {
       char* value = strrchr(token, ':');
       if(value != NULL) {
 	*value = '\0';
-	std::string token_as_string = token;
 	double value_as_double = strtod(value + 1, NULL);
 	
 	assert(!isinf(value_as_double));
 	assert(!isnan(value_as_double));
 	
 	//nbe is the loss, not a feature
-	if(token_as_string == "nbe") {
+	if(!strcmp(token, "nbe")) {
 	  this->loss = value_as_double;
-	} 
-	
-	else {
-	  if(features.find(token_as_string) == features.end()) {
-	    // fprintf(stderr, "could not find %s\n", token_as_string.c_str());
-	    continue;
-	  }
-	  
-	  unsigned int location = features.at(token_as_string);
-	  
-	  this->features[location] = value_as_double;
+	} else {
+            int location = strtol(token, NULL, 10);
+            if(location >= (int) weights.size()) weights.resize(location, 0);
+          features.push_back(feature(location, value_as_double));
 	  this->score += value_as_double * weights[location];
 	}
       }
@@ -72,4 +69,3 @@ struct example {
   };
 };
 
-#endif

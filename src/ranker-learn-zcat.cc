@@ -63,7 +63,7 @@ FILE* openpipe(const char* filename) {
   return output;
 }
 
-int compute_num_examples(const char* filename, std::unordered_map<std::string,int>& features)
+int compute_num_examples(const char* filename)
 {
   FILE* fp = openpipe(filename);
   if(!fp) return 0;
@@ -77,32 +77,7 @@ int compute_num_examples(const char* filename, std::unordered_map<std::string,in
     //if line is empty -> we've read all the examples
     if(buffer[0] == '\n') {
       ++num;
-      fprintf(stderr, "%d\r", num);
-    }
-    else {
-      char * inputstring = buffer;
-      char *token = NULL; 
-      if ((token =  strsep(&inputstring, " \t")) != NULL) {
-        // we dont read the first token as it is the label
-      } 
-
-      for(;(token = strsep(&inputstring, " \t\n"));) {
-	if(!strcmp(token,"")) continue;
-
-        char* value = strrchr(token, ':');
-        if(value != NULL) {
-          *value = '\0';
-	  std::string token_as_string = token;
-
-	  if (token_as_string != "nbe")
-	    features.insert(std::make_pair(token_as_string, features.size()));
-
-	  // if (token_as_string != "nbe")
-	  //   if(features.insert(std::make_pair(token_as_string, features.size())).second)
-	  //     fprintf(stderr, "adding feature %s\n", token_as_string.c_str());
-
-        }
-      }
+      if(num % 100 ==0) fprintf(stderr, "%d\r", num);
     }
     if(feof(fp)) break;
   }
@@ -115,7 +90,7 @@ int compute_num_examples(const char* filename, std::unordered_map<std::string,in
 }
 
 
-int process(char* filename, int loop, std::vector<double> &weights, std::vector<double> &avgWeights, const std::unordered_map<std::string, int> &features, int iteration, 
+int process(char* filename, int loop, std::vector<double> &weights, std::vector<double> &avgWeights, int iteration, 
 	    int num_examples, double clip, bool alter_model) 
 {
   int num = 0;
@@ -172,6 +147,7 @@ int process(char* filename, int loop, std::vector<double> &weights, std::vector<
       if(alter_model) {
 	// std::for_each(examples.begin(),examples.end(), mira_operator(loop, num_examples, iteration, num, clip, 
         //                                                              weights, avgWeights, oracle));
+    sort(oracle->features.begin(), oracle->features.end());
 	std::for_each(examples.begin(),examples.begin()+1, mira_operator(loop, num_examples, iteration, num, clip,
                                                                          weights, avgWeights, oracle));
       }
@@ -193,7 +169,7 @@ int process(char* filename, int loop, std::vector<double> &weights, std::vector<
     //read examples
     else{
       char * copy = strdup(buffer);
-      example_maker * em = new example_maker(copy, features,weights);
+      example_maker * em = new example_maker(copy, weights);
       
       examplemakers.push_back(em);
       em->start();
@@ -324,35 +300,26 @@ int main(int argc, char** argv) {
     abort();
   } 
  
-  // mapping : feature name -> int
-  std::unordered_map<std::string, int> features;
 
-    // why not ?
-    features.rehash(10*4659276);
-    features.max_load_factor(0.5);
+    int num_examples = compute_num_examples(trainset);
 
-    int num_examples = compute_num_examples(trainset, features);
-
-    fprintf(stderr, "Number of features: %lu\n", features.size());
-
-    std::vector<double> weights(features.size(), 0.0);
-    std::vector<double> avgWeights(features.size(), 0.0);
+    std::vector<double> weights;
+    std::vector<double> avgWeights;
 
 
     fprintf(stderr, "examples: %d\n", num_examples);
     for(unsigned iteration = 0; iteration < unsigned(loop); ++iteration) {
       fprintf(stderr, "iteration %d\n", iteration);
-      process(trainset, loop, weights, avgWeights, features, iteration, num_examples, clip, true);
+      process(trainset, loop, weights, avgWeights, iteration, num_examples, clip, true);
       if(devset)
-        process(devset, loop, weights, avgWeights, features, iteration, num_examples, clip, false);
+        process(devset, loop, weights, avgWeights, iteration, num_examples, clip, false);
       if(trainset) 
-        process(testset, loop, weights, avgWeights, features, iteration, num_examples, clip, false);
+        process(testset, loop, weights, avgWeights, iteration, num_examples, clip, false);
     }
 
-    auto end = features.end();
-    for(auto i = features.begin(); i != end; ++i) {
-      if(weights[i->second] != 0) {
-	fprintf(stdout, "%s 0 %32.31g\n", i->first.c_str(), weights[i->second] );
+    for(unsigned int i = 0; i < weights.size(); i++) {
+      if(weights[i] != 0) {
+        fprintf(stdout, "%d 0 %32.31g\n", i, weights[i] );
       }
     }
     return 0;

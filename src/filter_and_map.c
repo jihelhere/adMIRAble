@@ -6,6 +6,7 @@
 
 typedef struct feature {
   int id;
+  char* name;
   char* value;
 } feature_t;
 
@@ -71,6 +72,7 @@ int main(int argc, char** argv) {
                 if(id != -1) {
                     features[num_features].id = id;
                     features[num_features].value = end + 1;
+                    features[num_features].name = token;
                     num_features++;
                 }
             }
@@ -78,7 +80,11 @@ int main(int argc, char** argv) {
         qsort(features, num_features, sizeof(feature_t), feature_id_comparator);
         int i;
         for(i = 0; i < num_features; i++) {
-            fprintf(stdout, " %d:%s", features[i].id, features[i].value);
+            if(!strcmp(features[i].name, "nbe")) {
+                fprintf(stdout, " nbe:%s", features[i].value);
+            } else {
+                fprintf(stdout, " %d:%s", features[i].id, features[i].value);
+            }
         }
         fprintf(stdout, "\n");
     }

@@ -7,8 +7,8 @@ ranker_learn_iteration_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -p
 ranker_learn_iteration_LDFLAGS = -lm
 
 ranker_learn_zcat_SOURCES = Example.hh ExampleMaker.hh MiraOperator.hh ranker-learn-zcat.cc utils.c
-ranker_learn_zcat_CPPFLAGS= -DNDEBUG
-ranker_learn_zcat_CXXFLAGS= -O6 -Wall -Wextra -std=c++0x -ffast-math -pedantic -pthread
+#ranker_learn_zcat_CPPFLAGS= -DNDEBUG
+ranker_learn_zcat_CXXFLAGS= -g -Wall -Wextra -std=c++0x -ffast-math -pedantic -pthread
 ranker_learn_zcat_LDFLAGS= -lm -lpthread
 
 ranker_predict_SOURCES = ranker-predict.cc
@@ -40,7 +40,7 @@ filter_SOURCES = filter.c hashtable.h hashtable.c
 filter_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
 
 
-filter_and_map_SOURCES = filter.c hashtable.h hashtable.c
+filter_and_map_SOURCES = filter_and_map.c hashtable.h hashtable.c
 filter_and_map_CFLAGS = -O2 -g -Wall -Wextra -ffast-math -pedantic
 
 test_utils_SOURCES = test_utils.c utils.c
