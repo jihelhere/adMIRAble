@@ -40,7 +40,6 @@ struct mira_operator
     // skip the oracle -> useless update
     if(example == oracle) return;
     //fprintf(stderr, "mira: %g %g %g %g\n", oracle->score, oracle->loss, example->score, example->loss);
-    if(avgWeights.size() < weights.size()) avgWeights.resize(weights.size(), 0);
     
     
     sort(example->features.begin(), example->features.end());
@@ -79,12 +78,20 @@ struct mira_operator
       //update weight vectors
       i = oracle->features.begin();
       while(i != oracle->features.end()) {
+          if(weights.size() <= i->id) {
+              weights.resize(i->id + 1, 0);
+              avgWeights.resize(i->id + 1, 0);
+          }
           weights[i->id] += alpha * i->value;
           avgWeights[i->id] += avgalpha * i->value;
           i++;
       }
       j = example->features.begin();
       while(j != example->features.end()) {
+          if(weights.size() <= i->id) {
+              weights.resize(i->id + 1, 0);
+              avgWeights.resize(i->id + 1, 0);
+          }
           weights[j->id] -= alpha * j->value;
           avgWeights[j->id] -= avgalpha * j->value;
           j++;

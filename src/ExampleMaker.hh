@@ -36,7 +36,7 @@ struct example_maker
   void start()
   {
     my_thread = std::thread(&example_maker::create_example, this);
-    //create_example();
+    create_example();
   }
   
 };

@@ -8,7 +8,7 @@ ranker_learn_iteration_LDFLAGS = -lm
 
 ranker_learn_zcat_SOURCES = Example.hh ExampleMaker.hh MiraOperator.hh ranker-learn-zcat.cc utils.c
 #ranker_learn_zcat_CPPFLAGS= -DNDEBUG
-ranker_learn_zcat_CXXFLAGS= -O6 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic -pthread
+ranker_learn_zcat_CXXFLAGS= -g -Wall -Wextra -std=c++0x -ffast-math -pedantic -pthread
 ranker_learn_zcat_LDFLAGS= -lm -lpthread
 
 ranker_predict_SOURCES = ranker-predict.cc

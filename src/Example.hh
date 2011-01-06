@@ -45,17 +45,16 @@ struct example {
 	*value = '\0';
 	double value_as_double = strtod(value + 1, NULL);
 	
-	assert(!isinf(value_as_double));
-	assert(!isnan(value_as_double));
+	//assert(!isinf(value_as_double));
+	//assert(!isnan(value_as_double));
 	
 	//nbe is the loss, not a feature
 	if(!strcmp(token, "nbe")) {
 	  this->loss = value_as_double;
     } else {
         int location = strtol(token, NULL, 10);
-        if(location >= (int) weights.size()) weights.resize(location + 1, 0);
         features.push_back(feature(location, value_as_double));
-        this->score += value_as_double * weights[location];
+        if(location < weights.size()) this->score += value_as_double * weights[location];
         //fprintf(stderr, "%d:%g ", location, value_as_double);
     }
       }
