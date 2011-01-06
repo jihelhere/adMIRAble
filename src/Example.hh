@@ -54,7 +54,7 @@ struct example {
     } else {
         int location = strtol(token, NULL, 10);
         features.push_back(feature(location, value_as_double));
-        if(location < weights.size()) this->score += value_as_double * weights[location];
+        if(location < (int) weights.size()) this->score += value_as_double * weights[location];
         //fprintf(stderr, "%d:%g ", location, value_as_double);
     }
       }

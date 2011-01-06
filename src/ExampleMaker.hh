@@ -9,36 +9,43 @@
 
 struct example_maker
 {
-  std::thread my_thread;
+    std::thread my_thread;
 
-  char* buffer;
-  std::vector<double>& weights;
+    std::vector<char*>& lines;
+    std::vector<double>& weights;
+    std::vector<example*> examples;
 
-  example * my_example;
+    int from;
+    int to;
+
+    example_maker(std::vector<char*> &l, std::vector<double>& w)
+        : lines(l), weights(w), examples() {};
+
+    ~example_maker() {
+        for(auto example = examples.begin(); example != examples.end(); example++) {
+            delete *example;
+        }
+    }
+    void join() {
+        my_thread.join();
+    }
 
 
-  example_maker(char* b, std::vector<double>& w)
-    : buffer(b), weights(w), my_example(NULL) {};
+    void create_example()
+    {
+        for(int i = from; i < to; i++) {
+            examples.push_back(new example(lines[i], weights));
+        }
+    }
 
-  ~example_maker() { free(buffer);}
+    void start(int from, int to)
+    {
+        this->from = from;
+        this->to = to > (int) lines.size() ? lines.size() : to;
+        my_thread = std::thread(&example_maker::create_example, this);
+        //create_example();
+    }
 
-  void join() {
-     my_thread.join();
-}
-
-
-  void create_example()
-  {
-    char * b = buffer;
-    my_example = new example(b, weights);
-  }
-
-  void start()
-  {
-    my_thread = std::thread(&example_maker::create_example, this);
-    //create_example();
-  }
-  
 };
 
 

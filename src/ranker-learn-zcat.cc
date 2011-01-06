@@ -91,14 +91,14 @@ int compute_num_examples(const char* filename)
 
 
 int process(char* filename, int loop, std::vector<double> &weights, std::vector<double> &avgWeights, int iteration, 
-	    int num_examples, double clip, bool alter_model) 
+	    int num_examples, double clip, bool alter_model, int num_threads) 
 {
   int num = 0;
   int errors = 0;
   double avg_loss = 0;
   double one_best_loss = 0;
   
-  std::vector<example_maker*> examplemakers;
+  std::vector<char*> lines;
 
   FILE* fp = openpipe(filename);
   if(!fp) {
@@ -112,44 +112,63 @@ int process(char* filename, int loop, std::vector<double> &weights, std::vector<
     
     //if line is empty -> we've read all the examples
     if(buffer[0] == '\n') {
+      std::vector<example_maker*> examplemakers;
+      int num_per_thread = lines.size() / num_threads;
+      int start = 0;
+      for(int i = 0; i < num_threads; i++) {
+          example_maker* maker = new example_maker(lines, weights);
+          examplemakers.push_back(maker);
+          int end = start + num_per_thread;
+          // give one remaining examples to each thread
+          if(i < lines.size() % num_threads) end ++;
+          maker->start(start, end);
+          start = end;
+      }
 
       //      fprintf(stderr, "converting examplemakers to examples\n");
-      for(auto i = examplemakers.begin(); i != examplemakers.end(); ++i)
-	(*i)->join();
+      for(auto i = examplemakers.begin(); i != examplemakers.end(); ++i) {
+        (*i)->join();
+      }
 
-      std::vector<example*> examples(examplemakers.size(), NULL);
+      std::vector<example*> examples;
       example* oracle = NULL;
 
       //      fprintf(stderr, "creating vectors of examples\n");
       //      fprintf(stderr, "retrieveing oracle \n");
-      for(unsigned i = 0; i < examples.size(); ++i) {
-	examples[i] = examplemakers[i]->my_example;
-	if(oracle == NULL || examples[i]->loss < oracle->loss) 
-	  oracle = examples[i];
+      for(auto maker = examplemakers.begin(); maker != examplemakers.end(); maker++) {
+          for(auto current = (*maker)->examples.begin(); current != (*maker)->examples.end(); current++) {
+              examples.push_back(*current);
+          }
       }
-      
+      assert(examples.size() == lines.size());
+
+      for(unsigned i = 0; i < examples.size(); ++i) {
+          if(oracle == NULL || examples[i]->loss < oracle->loss) 
+              oracle = examples[i];
+      }
+
       //count the number of errors
       //fprintf(stdout, "num examples = %d\n", examples.size());
-      
+
       // sort the examples by score
       one_best_loss += examples[0]->loss;
       sort(examples.begin(), examples.end(), example::example_ptr_desc_order());
       avg_loss += examples[0]->loss;
-      
+
       for(unsigned int i = 0; i < examples.size(); ++i) {
-	if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
-	  ++errors;
-	  break;
-	}
+          if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
+              ++errors;
+              break;
+          }
       }
-      
+
       // training -> update
       if(alter_model) {
-	// std::for_each(examples.begin(),examples.end(), mira_operator(loop, num_examples, iteration, num, clip, 
-        //                                                              weights, avgWeights, oracle));
-    sort(oracle->features.begin(), oracle->features.end());
-	std::for_each(examples.begin(),examples.begin()+1, mira_operator(loop, num_examples, iteration, num, clip,
-                                                                         weights, avgWeights, oracle));
+          // std::for_each(examples.begin(),examples.end(), mira_operator(loop, num_examples, iteration, num, clip, 
+          //                                                              weights, avgWeights, oracle));
+          sort(oracle->features.begin(), oracle->features.end());
+          std::for_each(examples.begin(),examples.begin()+1, mira_operator(loop, num_examples, iteration, num, clip,
+                      weights, avgWeights, oracle));
       }
 
       ++num;
@@ -158,21 +177,20 @@ int process(char* filename, int loop, std::vector<double> &weights, std::vector<
       // reset data structures for next sentence
       oracle = NULL;
 
-      for(unsigned i = 0; i < examples.size(); ++i) {
-	delete examples[i];
-	delete examplemakers[i];
+      for(unsigned i = 0; i < examplemakers.size(); ++i) {
+        delete examplemakers[i];
       }
-      examplemakers.clear();
+      for(unsigned i = 0; i < lines.size(); ++i) {
+          free(lines[i]);
+        }
+      lines.clear();
 
     }
     
     //read examples
     else{
       char * copy = strdup(buffer);
-      example_maker * em = new example_maker(copy, weights);
-      
-      examplemakers.push_back(em);
-      em->start();
+      lines.push_back(copy);
     }
   }
   
@@ -199,6 +217,7 @@ int main(int argc, char** argv) {
   char * testset = NULL;
   double clip = CLIP;
   int loop = LOOP;
+  int num_threads = 1;
 
   char mode_def[] = "train";
   char * mode = mode_def;
@@ -221,13 +240,14 @@ int main(int argc, char** argv) {
 	{"test",        required_argument,       0, 't'},
 	{"clip",        required_argument,       0, 'c'},
 	{"iterations",  required_argument,       0, 'i'},
+	{"threads",  required_argument,       0, 'j'},
         //	{"mode",        required_argument,       0, 'm'},
 	{0, 0, 0, 0}
       };
     // int to store arg position
     int option_index = 0;
     
-    c = getopt_long (argc, argv, "s:d:t:c:i:m:hv", long_options, &option_index);
+    c = getopt_long (argc, argv, "s:d:t:c:i:j:m:hv", long_options, &option_index);
 
     // Detect the end of the options
     if (c == -1)
@@ -279,6 +299,11 @@ int main(int argc, char** argv) {
 	loop = atoi(optarg);
 	break;
 
+      case 'j':
+	fprintf (stderr, "number of threads: %s\n", optarg);
+	num_threads = atoi(optarg);
+	break;
+
       // case 'm':
       //   fprintf (stderr, "mode is: %s (but I don't care ;)\n", optarg);
       //   mode = optarg;
@@ -310,11 +335,11 @@ int main(int argc, char** argv) {
     fprintf(stderr, "examples: %d\n", num_examples);
     for(unsigned iteration = 0; iteration < unsigned(loop); ++iteration) {
       fprintf(stderr, "iteration %d\n", iteration);
-      process(trainset, loop, weights, avgWeights, iteration, num_examples, clip, true);
+      process(trainset, loop, weights, avgWeights, iteration, num_examples, clip, true, num_threads);
       if(devset)
-        process(devset, loop, weights, avgWeights, iteration, num_examples, clip, false);
+        process(devset, loop, weights, avgWeights, iteration, num_examples, clip, false, num_threads);
       if(trainset) 
-        process(testset, loop, weights, avgWeights, iteration, num_examples, clip, false);
+        process(testset, loop, weights, avgWeights, iteration, num_examples, clip, false, num_threads);
     }
 
     for(unsigned int i = 0; i < weights.size(); i++) {

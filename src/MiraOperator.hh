@@ -78,7 +78,7 @@ struct mira_operator
       //update weight vectors
       i = oracle->features.begin();
       while(i != oracle->features.end()) {
-          if(weights.size() <= i->id) {
+          if((int) weights.size() <= i->id) {
               weights.resize(i->id + 1, 0);
               avgWeights.resize(i->id + 1, 0);
           }
@@ -88,7 +88,7 @@ struct mira_operator
       }
       j = example->features.begin();
       while(j != example->features.end()) {
-          if(weights.size() <= j->id) {
+          if((int) weights.size() <= j->id) {
               weights.resize(j->id + 1, 0);
               avgWeights.resize(j->id + 1, 0);
           }
