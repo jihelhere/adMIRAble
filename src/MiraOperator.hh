@@ -88,9 +88,9 @@ struct mira_operator
       }
       j = example->features.begin();
       while(j != example->features.end()) {
-          if(weights.size() <= i->id) {
-              weights.resize(i->id + 1, 0);
-              avgWeights.resize(i->id + 1, 0);
+          if(weights.size() <= j->id) {
+              weights.resize(j->id + 1, 0);
+              avgWeights.resize(j->id + 1, 0);
           }
           weights[j->id] -= alpha * j->value;
           avgWeights[j->id] -= avgalpha * j->value;
