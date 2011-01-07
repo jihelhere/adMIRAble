@@ -22,6 +22,7 @@
 
 #define CLIP 0.05
 #define LOOP 10
+#define NUM_THREADS 1
 
 static int verbose_flag = 0;
 
@@ -29,12 +30,13 @@ void  print_help_message(char *program_name)
 {
   fprintf(stderr, "%s usage: %s [options]\n", program_name, program_name);
   fprintf(stderr, "OPTIONS :\n");
-  fprintf(stderr, "      --train,-s <file>           : training set file\n");
-  fprintf(stderr, "      --dev,-d   <file>           : dev set file\n");
-  fprintf(stderr, "      --test,-t  <file>           : test set file\n");
-  fprintf(stderr, "      --clip,-c  <double>         : clip value (default is %f)\n", CLIP);
-  fprintf(stderr, "      --iter,-i  <int>            : nb of iterations (default is %d)\n", LOOP);
-  fprintf(stderr, "      --mode,-m  <train|predict>  : running mode\n");
+  fprintf(stderr, "      --train,-s   <file>           : training set file\n");
+  fprintf(stderr, "      --dev,-d     <file>           : dev set file\n");
+  fprintf(stderr, "      --test,-t    <file>           : test set file\n");
+  fprintf(stderr, "      --clip,-c    <double>         : clip value (default is %f)\n", CLIP);
+  fprintf(stderr, "      --iter,-i    <int>            : nb of iterations (default is %d)\n", LOOP);
+  fprintf(stderr, "      --threads,-j <int>            : nb of threads (default is %d)\n", NUM_THREADS);
+  fprintf(stderr, "      --mode,-m    <train|predict>  : running mode\n");
     
   fprintf(stderr, "      -help,-h                    : print this message\n");
 }
@@ -217,7 +219,7 @@ int main(int argc, char** argv) {
   char * testset = NULL;
   double clip = CLIP;
   int loop = LOOP;
-  int num_threads = 1;
+  int num_threads = NUM_THREADS;
 
   char mode_def[] = "train";
   char * mode = mode_def;
