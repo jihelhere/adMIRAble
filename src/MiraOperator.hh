@@ -10,21 +10,32 @@
 
 struct mira_operator
 {
-  double avgUpdate;
+  int loop;
+  int iteration; 
+  int num_examples;
 
   double clip;
   std::vector<double> &weights;
   std::vector<double> &avgWeights;
+
+  int num;
   example* oracle;
 
-  mira_operator(int loop, int num_examples, int iteration, int num, double clip_,
-		std::vector<double> &weights_, std::vector<double> &avgWeights_, 
-		example* oracle_)
+  mira_operator(int loop_,  int iteration_, int num_examples_, double clip_,
+		std::vector<double> &weights_, std::vector<double> &avgWeights_)
     : 
-    avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1)),
+    loop(loop_), iteration(iteration_), num_examples(num_examples_),
     clip(clip_),
-    weights(weights_), avgWeights(avgWeights_), oracle(oracle_)
+    weights(weights_), avgWeights(avgWeights_), 
+    num(0), oracle(NULL)
   {};
+
+  void update(example* oracle_, int num_)
+  {
+    oracle = oracle_;
+    num = num_;
+
+  }
 
   inline
   bool incorrect_rank(const example * example) 
@@ -54,47 +65,53 @@ struct mira_operator
       while(i != oracle->features.end() && j != example->features.end()) {
           if(i->id < j->id) {
               norm += i->value * i->value;
-              i++;
+              ++i;
           } else if(j->id < i->id) {
               norm += j->value * j->value;
-              j++;
+              ++j;
           } else {
               double difference = i->value - j->value;
               norm += difference * difference;
-              i++;
-              j++;
+              ++i;
+              ++j;
           }
       }
-      while(i != oracle->features.end()) { norm += i->value * i->value; i++; }
-      while(j != example->features.end()) { norm += j->value * j->value; j++; }
+      while(i != oracle->features.end())  { norm += i->value * i->value; ++i; }
+      while(j != example->features.end()) { norm += j->value * j->value; ++j; }
 
       delta /= norm;
       alpha += delta;
       if(alpha < 0) alpha = 0;
       if(alpha > clip) alpha = clip;
+
+   
+      //      double avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1));
+
+      double avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num )) + 1));
+
       double avgalpha = alpha * avgUpdate;
       //fprintf(stderr, "norm: %g alpha: %g\n", norm, alpha);
 
       //update weight vectors
       i = oracle->features.begin();
       while(i != oracle->features.end()) {
-          if((int) weights.size() <= i->id) {
+          if(weights.size() <= i->id) {
               weights.resize(i->id + 1, 0);
               avgWeights.resize(i->id + 1, 0);
           }
           weights[i->id] += alpha * i->value;
           avgWeights[i->id] += avgalpha * i->value;
-          i++;
+          ++i;
       }
       j = example->features.begin();
       while(j != example->features.end()) {
-          if((int) weights.size() <= j->id) {
+          if(weights.size() <= j->id) {
               weights.resize(j->id + 1, 0);
               avgWeights.resize(j->id + 1, 0);
           }
           weights[j->id] -= alpha * j->value;
           avgWeights[j->id] -= avgalpha * j->value;
-          j++;
+          ++j;
       }
     }
   }

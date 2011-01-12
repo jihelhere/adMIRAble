@@ -8,6 +8,7 @@ int main(int argc, char** argv) {
     hashtable_t* local_counts = hashtable_new(10000);
     int buffer_size = 1024;
     char* buffer = malloc(buffer_size);
+    int nsentences = 0;
     while(NULL != fgets(buffer, buffer_size, stdin)) {
         while(buffer[strlen(buffer) - 1] != '\n') {
             buffer_size *= 2;
@@ -15,6 +16,7 @@ int main(int argc, char** argv) {
             if(fgets(buffer + strlen(buffer), buffer_size - strlen(buffer), stdin) == NULL) break;
         }
         if(*buffer == '\n') {
+	  fprintf(stderr, "%d\n", ++nsentences);
             int i;
             for(i = 0; i < local_counts->num_values; i++) {
                 if(local_counts->values[i].key != NULL) {

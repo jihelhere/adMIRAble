@@ -24,6 +24,7 @@
 #define LOOP 10
 #define NUM_THREADS 1
 
+
 static int verbose_flag = 0;
 
 void  print_help_message(char *program_name)
@@ -92,16 +93,13 @@ int compute_num_examples(const char* filename)
 }
 
 
-int process(char* filename, int loop, std::vector<double> &weights, std::vector<double> &avgWeights, int iteration, 
-	    int num_examples, double clip, bool alter_model, int num_threads) 
+double process(char* filename, std::vector<double> &weights, bool alter_model, int num_threads, mira_operator& mira) 
 {
   int num = 0;
   int errors = 0;
   double avg_loss = 0;
   double one_best_loss = 0;
   
-  std::vector<char*> lines;
-
   FILE* fp = openpipe(filename);
   if(!fp) {
     fprintf(stderr, "ERROR: cannot open \"%s\"\n", filename);
@@ -110,106 +108,106 @@ int process(char* filename, int loop, std::vector<double> &weights, std::vector<
 
   int buffer_size = 1024;
   char* buffer = (char*) malloc(buffer_size);
-  while(read_line(&buffer, &buffer_size, fp)) {
+
+  std::vector<char*> lines;
+
+  //read examples
+  while(read_line(&buffer, &buffer_size, fp))  {
+
+    // store example lines
+    if(buffer[0] != '\n') {
+      lines.push_back(strdup(buffer));
+    }
     
-    //if line is empty -> we've read all the examples
-    if(buffer[0] == '\n') {
-      std::vector<example_maker*> examplemakers;
-      int num_per_thread = lines.size() / num_threads;
-      int start = 0;
-      for(int i = 0; i < num_threads; i++) {
-          example_maker* maker = new example_maker(lines, weights);
-          examplemakers.push_back(maker);
-          int end = start + num_per_thread;
-          // give one remaining examples to each thread
-          if(i < lines.size() % num_threads) end ++;
-          maker->start(start, end);
-          start = end;
+
+    // empty line -> end of examples for this instance
+    else {
+      std::vector<example_maker*> examplemakers(num_threads, NULL);
+      
+      for(int i = 0; i < num_threads; ++i) {
+      	examplemakers[i] = new example_maker(lines, weights);
+      	examplemakers[i]->start(i*lines.size()/num_threads, (i+1)*lines.size()/num_threads);
       }
 
-      //      fprintf(stderr, "converting examplemakers to examples\n");
+      
+      // fprintf(stderr, "converting examplemakers to examples\n");
       for(auto i = examplemakers.begin(); i != examplemakers.end(); ++i) {
-        (*i)->join();
+	(*i)->join();
       }
-
+    
       std::vector<example*> examples;
-      example* oracle = NULL;
-
-      //      fprintf(stderr, "creating vectors of examples\n");
-      //      fprintf(stderr, "retrieveing oracle \n");
-      for(auto maker = examplemakers.begin(); maker != examplemakers.end(); maker++) {
-          for(auto current = (*maker)->examples.begin(); current != (*maker)->examples.end(); current++) {
-              examples.push_back(*current);
-          }
+    
+      //fprintf(stderr, "creating vectors of examples\n");
+      for(auto maker = examplemakers.begin(); maker != examplemakers.end(); ++maker) {
+	examples.insert(examples.end(), (*maker)->examples.begin(), (*maker)->examples.end());
       }
+      
+      // fprintf(stderr, "%d %d %d\n", examplemakers.size(), examples.size(), lines.size());
       assert(examples.size() == lines.size());
+    
+ 
+ 
+      // compute scores and metrics
+    
+      one_best_loss += examples[0]->loss;
+#ifdef BERKELEY_HACK
+      sort(examples.begin(), examples.end(), example::example_ptr_desc_prob_order());
+#endif
 
+      example* oracle = examples[0];
       for(unsigned i = 0; i < examples.size(); ++i) {
-          if(oracle == NULL || examples[i]->loss < oracle->loss) 
-              oracle = examples[i];
+	if(examples[i]->loss < oracle->loss) 
+	  oracle = examples[i];
       }
-
+    
       //count the number of errors
       //fprintf(stdout, "num examples = %d\n", examples.size());
-
+    
       // sort the examples by score
-      one_best_loss += examples[0]->loss;
-      sort(examples.begin(), examples.end(), example::example_ptr_desc_order());
+      sort(examples.begin(), examples.end(), example::example_ptr_desc_score_order());
       avg_loss += examples[0]->loss;
-
+    
       for(unsigned int i = 0; i < examples.size(); ++i) {
-          if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
-              ++errors;
-              break;
-          }
+	if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
+	  ++errors;
+	  break;
+	}
       }
+      
+      ++num;
+      if(num % 10 == 0) fprintf(stderr, "\r%d %d %f %f/%f", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
 
       // training -> update
       if(alter_model) {
-          // std::for_each(examples.begin(),examples.end(), mira_operator(loop, num_examples, iteration, num, clip, 
-          //                                                              weights, avgWeights, oracle));
-          sort(oracle->features.begin(), oracle->features.end());
-          std::for_each(examples.begin(),examples.begin()+1, mira_operator(loop, num_examples, iteration, num, clip,
-                      weights, avgWeights, oracle));
+	sort(oracle->features.begin(), oracle->features.end());
+      
+	mira.update(oracle, num);
+
+	// std::for_each(examples.begin(),examples.end(), mira);
+	std::for_each(examples.begin(),examples.begin()+1, mira);
       }
-
-      ++num;
-      if(num % 10 == 0) fprintf(stderr, "\r%d %d %f %f/%f", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
-            
+    
       // reset data structures for next sentence
-      oracle = NULL;
-
+    
       for(unsigned i = 0; i < examplemakers.size(); ++i) {
-        delete examplemakers[i];
+	delete examplemakers[i];
       }
       for(unsigned i = 0; i < lines.size(); ++i) {
-          free(lines[i]);
-        }
+	free(lines[i]);
+      }
       lines.clear();
-
-    }
-    
-    //read examples
-    else{
-      char * copy = strdup(buffer);
-      lines.push_back(copy);
+      examplemakers.clear();
     }
   }
   
   fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
   
-  if(alter_model)
-    // averaging for next iteration
-    for(unsigned int i = 0; i < avgWeights.size(); ++i) {
-      if(avgWeights[i] != 0.0)
-	weights[i] = avgWeights[i] / (num_examples * loop);
-    }
-  
   fclose(fp);
   int status;
   wait(&status);
   free(buffer);
-  return 0;
+
+  return avg_loss/num;
 }
 
 int main(int argc, char** argv) {
@@ -332,21 +330,41 @@ int main(int argc, char** argv) {
 
     std::vector<double> weights;
     std::vector<double> avgWeights;
+    std::vector<double> saveweights;
+
+    double dev_loss = -1;
 
 
     fprintf(stderr, "examples: %d\n", num_examples);
     for(unsigned iteration = 0; iteration < unsigned(loop); ++iteration) {
       fprintf(stderr, "iteration %d\n", iteration);
-      process(trainset, loop, weights, avgWeights, iteration, num_examples, clip, true, num_threads);
-      if(devset)
-        process(devset, loop, weights, avgWeights, iteration, num_examples, clip, false, num_threads);
-      if(trainset) 
-        process(testset, loop, weights, avgWeights, iteration, num_examples, clip, false, num_threads);
+
+      mira_operator mira(loop, iteration, num_examples, clip, weights, avgWeights);
+      (void) process(trainset, weights, true, num_threads, mira);
+      // averaging for next iteration
+      for(unsigned int i = 0; i < avgWeights.size(); ++i) {
+	if(avgWeights[i] != 0.0)
+	  weights[i] = avgWeights[i] / (num_examples * loop);
+      }
+
+      if(devset) {
+        double d = process(devset, weights, false, num_threads, mira);
+	if(dev_loss < 0 || d < dev_loss) {
+	  dev_loss = d;
+	  saveweights = weights;
+	}
+      }
+
+      if(testset) 
+        (void) process(testset, weights, false, num_threads, mira);
     }
 
-    for(unsigned int i = 0; i < weights.size(); i++) {
-      if(weights[i] != 0) {
-        fprintf(stdout, "%d 0 %32.31g\n", i, weights[i] );
+
+    if(dev_loss < 0) { saveweights = weights;}
+    
+    for(unsigned int i = 0; i < saveweights.size(); ++i) {
+      if(saveweights[i] != 0) {
+        fprintf(stdout, "%d 0 %32.31g\n", i, saveweights[i] );
       }
     }
     return 0;
