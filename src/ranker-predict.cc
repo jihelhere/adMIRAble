@@ -10,8 +10,8 @@
 using namespace std;
 
 int main(int argc, char** argv) {
-    if(argc != 2) {
-        fprintf(stderr, "USAGE: %s <model> < examples\n", argv[0]);
+    if(argc != 3) {
+        fprintf(stderr, "USAGE: %s <model> <limit> < examples\n", argv[0]);
         return 1;
     }
 
@@ -20,6 +20,9 @@ int main(int argc, char** argv) {
       fprintf(stderr, "ERROR: cannot open \"%s\"\n", argv[1]);
       return 1;
     }
+
+    int limit = atoi(argv[2]);
+    fprintf(stderr, "limit: %d\n", limit);
 
     vector<double> weights;
     unordered_map<string, int> features;
@@ -65,6 +68,7 @@ int main(int argc, char** argv) {
             buffer = (char*) realloc(buffer, buffer_size);
             if(fgets(buffer + strlen(buffer), buffer_size - strlen(buffer), stdin) == NULL) break;
         }
+
         if(buffer[0] == '\n') {
             avg_loss += loss_of_max;
             if(num % 10 == 0) fprintf(stderr, "\r%d %f/%f", num, avg_loss / num, one_best_loss / num);
@@ -74,6 +78,10 @@ int main(int argc, char** argv) {
             current = 0;
             continue;
         }
+	
+	if(current == (limit))
+	  continue;
+
         char* token;
         int first = 1;
         int label = 0;

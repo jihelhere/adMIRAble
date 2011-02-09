@@ -150,9 +150,6 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
       // compute scores and metrics
     
       one_best_loss += examples[0]->loss;
-#ifdef BERKELEY_HACK
-      sort(examples.begin(), examples.end(), example::example_ptr_desc_prob_order());
-#endif
 
       example* oracle = examples[0];
       for(unsigned i = 0; i < examples.size(); ++i) {
