@@ -94,11 +94,13 @@ class output_thread {
 };
 
 int main(int argc, char** argv) {
-    if(argc < 3) {
-        fprintf(stderr, "usage: %s <num-threads> <model>\n", argv[0]);
+    if(argc < 3 || argc > 4) {
+        fprintf(stderr, "usage: %s <num-threads> <model> [num-candidates]\n", argv[0]);
         return 1;
     }
     int num_threads = strtol(argv[1], NULL, 10);
+    int num_candidates = -1;
+    if(argc == 4) num_candidates = strtol(argv[3], NULL, 10);
     ranker::predictor model(1, std::string(argv[2]));
     thread_safe_queue<std::vector<std::promise<double>*>*> output_queue(num_threads);
     thread_safe_queue<std::pair<char*, std::promise<double>*>> input_queue(num_threads);
@@ -117,7 +119,7 @@ int main(int argc, char** argv) {
         if(length == 1) {
             output_queue.push(results);
             results = new std::vector<std::promise<double>*>();
-        } else {
+        } else if(num_candidates == -1 || (int) results->size() < num_candidates) {
             std::promise<double>* result = new std::promise<double>();
             results->push_back(result);
             input_queue.push(std::pair<char*,std::promise<double>*>(strdup(buffer), results->back()));
