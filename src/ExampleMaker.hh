@@ -7,6 +7,7 @@
 
 #include "Example.hh"
 
+namespace ranker {
 struct example_maker
 {
     std::thread my_thread;
@@ -46,6 +47,7 @@ struct example_maker
         //create_example();
     }
 
+};
 };
 
 

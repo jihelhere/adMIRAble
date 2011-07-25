@@ -7,6 +7,10 @@ AC_CONFIG_SRCDIR([src/ranker-learn-zcat.cc])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_HEADERS([config.h])
 
+# libtool
+LT_INIT
+AC_CONFIG_MACRO_DIR([m4])
+
 # Checks for programs.
 CXXFLAGS=""
 AC_PROG_CXX

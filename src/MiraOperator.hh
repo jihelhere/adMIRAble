@@ -7,6 +7,7 @@
 
 #include "Example.hh"
 
+namespace ranker {
 
 struct mira_operator
 {
@@ -115,6 +116,8 @@ struct mira_operator
       }
     }
   }
+};
+
 };
 
 #endif

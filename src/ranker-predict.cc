@@ -7,7 +7,10 @@
 #include <vector>
 #include <string>
 
+#include "ranker.hh"
+
 using namespace std;
+using namespace ranker;
 
 int main(int argc, char** argv) {
     if(argc != 3) {
@@ -84,14 +87,10 @@ int main(int argc, char** argv) {
 
         char* token;
         int first = 1;
-        int label = 0;
         double score = 0.0;
         double loss = 0.0;
         for(token = strtok(buffer, " \t\n\r"); token != NULL; token = strtok(NULL, " \t\n\r")) {
             if(first == 1) {
-                if(!strcmp(token, "1")) {
-                    label = 1;
-                }
                 first = 0;
             } else {
                 char* value_start = strrchr(token, ':');
@@ -104,7 +103,7 @@ int main(int argc, char** argv) {
                         unordered_map<string, int>::iterator found = features.find(token_as_string);
                         if(found != features.end()) {
                             double value = strtod(value_start + 1, NULL);
-                            if(!isinf(value) && !isnan(value)) {
+                            if(!std::isinf(value) && !std::isnan(value)) {
                                 score += value * weights[(*found).second];
                             }
                         }

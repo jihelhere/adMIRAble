@@ -24,6 +24,7 @@
 #define LOOP 10
 #define NUM_THREADS 1
 
+using namespace ranker;
 
 static int verbose_flag = 0;
 

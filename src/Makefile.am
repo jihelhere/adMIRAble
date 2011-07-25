@@ -1,6 +1,17 @@
 AM_CXXFLAGS=
+CXXFLAGS=-O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
 
-bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_sentence drop_common_features transform_logprob filter filter_and_map test_utils split merge-models ranker-learn-iteration
+bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_sentence drop_common_features transform_logprob filter filter_and_map test_utils split merge-models ranker-learn-iteration ranker_main ranker_parallel
+lib_LTLIBRARIES = libranker-0.1.la
+libranker_0_1_la_SOURCES = ranker.cc
+libranker_0_1_la_CXXFLAGS = $(CXXFLAGS)
+
+ranker_parallel_SOURCES = ranker_parallel.cc ranker.cc
+ranker_parallel_CXXFLAGS = $(CXXFLAGS)
+ranker_parallel_LDFLAGS = -lpthread
+
+ranker_main_SOURCES = ranker_main.cc ranker.cc
+ranker_main_CXXFLAGS = $(CXXFLAGS)
 
 ranker_learn_iteration_SOURCES = ranker-learn-iteration.cc utils.c
 ranker_learn_iteration_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
@@ -11,7 +22,7 @@ ranker_learn_zcat_CPPFLAGS= -DNDEBUG
 ranker_learn_zcat_CXXFLAGS= -O6 -Wall -Wextra -std=c++0x -ffast-math -pedantic -pthread
 ranker_learn_zcat_LDFLAGS= -lm -lpthread
 
-ranker_predict_SOURCES = ranker-predict.cc
+ranker_predict_SOURCES = ranker-predict.cc ranker.cc
 ranker_predict_CXXFLAGS = -O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
 ranker_predict_LDFLAGS = -lm -lz
 
