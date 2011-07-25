@@ -1,5 +1,5 @@
 AM_CXXFLAGS=
-CXXFLAGS=-O2 -g -Wall -Wextra -std=c++0x -ffast-math -pedantic
+CXXFLAGS=-g -Wall -Wextra -std=c++0x -ffast-math -pedantic
 
 bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_sentence drop_common_features transform_logprob filter filter_and_map test_utils split merge-models ranker-learn-iteration ranker_main ranker_parallel
 lib_LTLIBRARIES = libranker-0.1.la

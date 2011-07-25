@@ -13,13 +13,12 @@ class input_thread {
     thread_safe_queue<std::pair<char*,std::promise<double>*>>* queue;
     ranker::predictor& model;
     std::thread thread;
-    bool finished;
 
     public:
     void start() {
-        while(!finished || !queue->empty()) {
+        while(!queue->finished()) {
             if(!queue->empty()) {
-                std::pair<char*,std::promise<double>*> input = queue->atomic_pop();
+                std::pair<char*,std::promise<double>*> input = queue->pop();
                 ranker::example x;
                 char *inputstring = input.first;
                 char *token = NULL; 
@@ -49,11 +48,10 @@ class input_thread {
     }
 
     void stop() {
-        finished = true;
         thread.join();
     }
 
-    input_thread(thread_safe_queue<std::pair<char*,std::promise<double>*>>* _queue, ranker::predictor& _model):queue(_queue),model(_model),finished(false) {
+    input_thread(thread_safe_queue<std::pair<char*,std::promise<double>*>>* _queue, ranker::predictor& _model):queue(_queue),model(_model) {
         thread = std::thread(&input_thread::start, this);
     }
 
@@ -62,13 +60,12 @@ class input_thread {
 class output_thread {
     std::thread thread;
     thread_safe_queue<std::vector<std::promise<double>*>*>* queue;
-    bool finished;
 
     public:
     void start() {
-        while(!finished || !queue->empty()) {
-            if(!queue->empty()) {
-                std::vector<std::promise<double>*>* result = queue->atomic_pop(); // single consumer
+        while(!queue->finished()) {
+            if(!queue->empty() && !queue->finished()) {
+                std::vector<std::promise<double>*>* result = queue->pop(); // single consumer
                 int argmax = -1;
                 double max = 0;
                 for(size_t i = 0; i < result->size(); i++) {
@@ -79,7 +76,6 @@ class output_thread {
                     }
                     delete (*result)[i];
                 }
-                queue->pop();
                 delete result;
                 fprintf(stdout, "%d\n", argmax);
             } else {
@@ -89,11 +85,10 @@ class output_thread {
     }
 
     void stop() {
-        finished = true;
         thread.join();
     }
 
-    output_thread(thread_safe_queue<std::vector<std::promise<double>*>*>* _queue): queue(_queue), finished(false) {
+    output_thread(thread_safe_queue<std::vector<std::promise<double>*>*>* _queue): queue(_queue) {
         thread = std::thread(&output_thread::start, this);
     }
 };
@@ -105,8 +100,8 @@ int main(int argc, char** argv) {
     }
     int num_threads = strtol(argv[1], NULL, 10);
     ranker::predictor model(1, std::string(argv[2]));
-    thread_safe_queue<std::vector<std::promise<double>*>*> output_queue;
-    thread_safe_queue<std::pair<char*, std::promise<double>*>> input_queue;
+    thread_safe_queue<std::vector<std::promise<double>*>*> output_queue(num_threads);
+    thread_safe_queue<std::pair<char*, std::promise<double>*>> input_queue(num_threads);
     output_thread output(&output_queue);
     std::vector<input_thread*> input;
     for(int i = 0; i < num_threads; i++) {
@@ -127,6 +122,14 @@ int main(int argc, char** argv) {
             results->push_back(result);
             input_queue.push(std::pair<char*,std::promise<double>*>(strdup(buffer), results->back()));
         }
+    }
+    input_queue.set_finished();
+    while(!input_queue.finished()) {
+        sched_yield();
+    }
+    output_queue.set_finished();
+    while(!output_queue.finished()) {
+        sched_yield();
     }
     for(int i = 0; i < num_threads; i++) {
         input[i]->stop();
