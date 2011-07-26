@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ -f Makefile ]
+then
+    make distclean
+    rm Makefile.in src/Makefile.in
+fi
+
+libtoolize
+automake --add-missing
+autoreconf
+
+./configure

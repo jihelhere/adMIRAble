@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "hashtable.h"
-#include "vector.h"
+#include <string>
+#include <unordered_map>
+
+using namespace std;
 
 typedef struct feature {
   int id;
@@ -15,12 +17,24 @@ int feature_id_comparator(const void* a, const void* b) {
     return -1;
 }
 
+bool dictionary_comparator(const pair<string, int> &a, const pair<string, int> &b) {
+    return a.first < b.first;
+}
+
+struct eqstr
+{
+    bool operator()(const char* s1, const char* s2) const
+    {
+        return (s1 == s2) || (s1 && s2 && strcmp(s1, s2) == 0);
+    }
+};
+
 int main(int argc, char** argv) {
     if(argc != 3) {
         fprintf(stderr, "USAGE: %s <counts> <cutoff>\n", argv[0]);
         exit(1);
     }
-    hashtable_t* hashtable = hashtable_new(100000000);
+    unordered_map<string, int> dictionary;
     int cutoff = atoi(argv[2]);
     FILE* fp = fopen(argv[1], "r");
     if(fp == NULL) {
@@ -28,7 +42,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
     int buffer_size = 1024;
-    char* buffer = malloc(buffer_size);
+    char* buffer = (char*) malloc(buffer_size);
     int num = 1;
     while(NULL != fgets(buffer, buffer_size, fp)) {
         while(buffer[strlen(buffer) - 1] != '\n') {
@@ -43,10 +57,12 @@ int main(int argc, char** argv) {
         number++;
         int value = strtol(number, NULL, 10);
         if(value >= cutoff) {
-            hashtable_put(hashtable, buffer, (value_t) num);
+            dictionary[strdup(buffer)] = num;
             num ++;
+            if(num % 100000 == 0) fprintf(stderr, "\rloading %d", num);
         }
     }
+    fprintf(stderr, "\rloading %d\n", num);
     fclose(fp);
     feature_t features[100000];
     int num_features = 0;
@@ -68,9 +84,13 @@ int main(int argc, char** argv) {
             char* end = strrchr(token, ':');
             if(end != NULL) {
                 *end = '\0';
-                int id = hashtable_get(hashtable, token).int_value;
-                if(id != -1) {
-                    features[num_features].id = id;
+                unordered_map<string, int>::const_iterator id = dictionary.find(string(token));
+                if(id != dictionary.end()) {
+                    if(num_features >= 100000) {
+                        fprintf(stderr, "ERROR: example has more than 100k features\n");
+                        exit(1);
+                    }
+                    features[num_features].id = id->second;
                     features[num_features].value = end + 1;
                     features[num_features].name = token;
                     num_features++;
@@ -88,6 +108,5 @@ int main(int argc, char** argv) {
         }
         fprintf(stdout, "\n");
     }
-    hashtable_free(hashtable);
     return 0;
 }

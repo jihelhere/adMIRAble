@@ -6,6 +6,18 @@ AC_INIT([admirable], [0.001], [BUG-REPORT-ADDRESS])
 AC_CONFIG_SRCDIR([src/ranker-learn-zcat.cc])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_CONFIG_HEADERS([config.h])
+AC_MSG_CHECKING(whether to enable debugging)
+debug_default="yes"
+AC_ARG_ENABLE(debug, [--enable-debug=[no/yes] turn on debugging
+                     [default=$debug_default]],, enable_debug=$debug_default)
+
+if test "x$enable_debug" = "xyes"; then
+    CXXFLAGS="$CXXFLAGS -g -DDEBUG -Wall -Wextra -pedantic -std=c++0x"
+    AC_MSG_RESULT(yes)
+else
+    CXXFLAGS="$CXXFLAGS -O6 -DNDEBUG -Wall -Wextra -pedantic -std=c++0x"
+    AC_MSG_RESULT(no)
+fi
 
 # libtool
 AC_PROG_LIBTOOL
@@ -13,7 +25,6 @@ LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
-CXXFLAGS=""
 AC_PROG_CXX
 AC_PROG_CC
 
