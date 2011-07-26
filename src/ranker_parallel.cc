@@ -15,6 +15,9 @@ class input_thread {
     std::thread thread;
 
     public:
+    void push(std::pair<char*,std::promise<double>*> item) {
+        queue->push(item);
+    }
     void start() {
         while(!queue->finished()) {
             if(!queue->empty()) {
@@ -48,13 +51,17 @@ class input_thread {
     }
 
     void stop() {
+        queue->set_finished();
         thread.join();
     }
 
-    input_thread(thread_safe_queue<std::pair<char*,std::promise<double>*>>* _queue, ranker::predictor& _model):queue(_queue),model(_model) {
+    input_thread(ranker::predictor& _model, int queue_size):model(_model) {
+        queue = new thread_safe_queue<std::pair<char*,std::promise<double>*>>(queue_size);
         thread = std::thread(&input_thread::start, this);
     }
-
+    ~input_thread() {
+        delete queue;
+    }
 };
 
 class output_thread {
@@ -62,6 +69,9 @@ class output_thread {
     thread_safe_queue<std::vector<std::promise<double>*>*>* queue;
 
     public:
+    void push(std::vector<std::promise<double>*>* item) {
+        queue->push(item);
+    }
     void start() {
         while(!queue->finished()) {
             if(!queue->empty() && !queue->finished()) {
@@ -85,11 +95,16 @@ class output_thread {
     }
 
     void stop() {
+        queue->set_finished();
         thread.join();
     }
 
-    output_thread(thread_safe_queue<std::vector<std::promise<double>*>*>* _queue): queue(_queue) {
+    output_thread(int queue_size) {
+        queue = new thread_safe_queue<std::vector<std::promise<double>*>*>(queue_size);
         thread = std::thread(&output_thread::start, this);
+    }
+    ~output_thread() {
+        delete queue;
     }
 };
 
@@ -102,12 +117,12 @@ int main(int argc, char** argv) {
     int num_candidates = -1;
     if(argc == 4) num_candidates = strtol(argv[3], NULL, 10);
     ranker::predictor model(1, std::string(argv[2]));
-    thread_safe_queue<std::vector<std::promise<double>*>*> output_queue(num_threads);
-    thread_safe_queue<std::pair<char*, std::promise<double>*>> input_queue(num_threads);
-    output_thread output(&output_queue);
+    output_thread output(200);
+
     std::vector<input_thread*> input;
+    int current_input_thread = 0;
     for(int i = 0; i < num_threads; i++) {
-        input.push_back(new input_thread(&input_queue, model));
+        input.push_back(new input_thread(model, 200));
     }
 
     char* buffer = NULL;
@@ -117,21 +132,15 @@ int main(int argc, char** argv) {
     std::vector<std::promise<double>*>* results = new std::vector<std::promise<double>*>();
     while(0 <= (length = getline(&buffer, &buffer_length, stdin))) {
         if(length == 1) {
-            output_queue.push(results);
+            output.push(results);
             results = new std::vector<std::promise<double>*>();
         } else if(num_candidates == -1 || (int) results->size() < num_candidates) {
             std::promise<double>* result = new std::promise<double>();
             results->push_back(result);
-            input_queue.push(std::pair<char*,std::promise<double>*>(strdup(buffer), results->back()));
+            input[current_input_thread]->push(std::pair<char*,std::promise<double>*>(strdup(buffer), results->back()));
+            current_input_thread++;
+            if(current_input_thread >= num_threads) current_input_thread = 0; // round-robin
         }
-    }
-    input_queue.set_finished();
-    while(!input_queue.finished()) {
-        sched_yield();
-    }
-    output_queue.set_finished();
-    while(!output_queue.finished()) {
-        sched_yield();
     }
     for(int i = 0; i < num_threads; i++) {
         input[i]->stop();
