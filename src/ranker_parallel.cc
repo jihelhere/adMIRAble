@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ranker.hh"
+#include "Predictor.hh"
 #include "thread_safe_queue.hh"
 #include <thread>
 #include <future>
@@ -11,7 +11,7 @@
 
 class input_thread {
     thread_safe_queue<std::pair<char*,std::promise<double>*>>* queue;
-    ranker::predictor& model;
+    ranker::Predictor& model;
     std::thread thread;
 
     public:
@@ -37,7 +37,7 @@ class input_thread {
                             x.loss = value_as_double;
                         } else {
                             int location = strtol(token, NULL, 10);
-                            x.features.push_back(ranker::feature(location, value_as_double));
+                            x.features.push_back(ranker::Feature(location, value_as_double));
                         }
                     }
                 }
@@ -55,7 +55,7 @@ class input_thread {
         thread.join();
     }
 
-    input_thread(ranker::predictor& _model, int queue_size):model(_model) {
+    input_thread(ranker::Predictor& _model, int queue_size):model(_model) {
         queue = new thread_safe_queue<std::pair<char*,std::promise<double>*>>(queue_size);
         thread = std::thread(&input_thread::start, this);
     }
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     int num_threads = strtol(argv[1], NULL, 10);
     int num_candidates = -1;
     if(argc == 4) num_candidates = strtol(argv[3], NULL, 10);
-    ranker::predictor model(1, std::string(argv[2]));
+    ranker::Predictor model(1, std::string(argv[2]));
     output_thread output(200);
 
     std::vector<input_thread*> input;

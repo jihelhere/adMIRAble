@@ -16,8 +16,8 @@
 #include <thread>
 
 #include "utils.h"
-#include "example.hh"
-#include "example_maker.hh"
+#include "Example.hh"
+#include "ExampleMaker.hh"
 #include "MiraOperator.hh"
 
 #define CLIP 0.05

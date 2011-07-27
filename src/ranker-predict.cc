@@ -7,10 +7,7 @@
 #include <vector>
 #include <string>
 
-#include "ranker.hh"
-
 using namespace std;
-using namespace ranker;
 
 int main(int argc, char** argv) {
     if(argc != 3) {

@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <algorithm>
 
-#include "example.hh"
+#include "Example.hh"
 
 namespace ranker {
 

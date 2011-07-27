@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include "example.hh"
+#include "Example.hh"
 
 namespace ranker {
     struct Predictor {
@@ -11,12 +11,12 @@ namespace ranker {
         std::unordered_map<std::string, int> mapping;
         std::unordered_map<int, double> model;
 
-        predictor(int num_threads, std::string modelname) {
+        Predictor(int num_threads, std::string modelname) {
             this->num_threads = num_threads;
             load_model(modelname);
         }
 
-        predictor(int num_threads, std::string modelname, std::string mappingname) {
+        Predictor(int num_threads, std::string modelname, std::string mappingname) {
             this->num_threads = num_threads;
             load_model(modelname);
             load_mapping(mappingname);
@@ -91,7 +91,7 @@ namespace ranker {
             return argmax;
         }
 
-        double compute_score(Example& i) {
+        double compute_score(Example& x) {
             double score = 0;
             for(auto i = x.features.begin(); i != x.features.end(); i++) {
                 score += model[i->id] * i->value;

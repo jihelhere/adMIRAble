@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <thread>
 
-#include "example.hh"
+#include "Example.hh"
 
 namespace ranker {
 struct ExampleMaker
@@ -14,7 +14,7 @@ struct ExampleMaker
 
     std::vector<char*>& lines;
     std::vector<double>& weights;
-    std::vector<example*> examples;
+    std::vector<Example*> examples;
 
     int from;
     int to;
@@ -35,7 +35,7 @@ struct ExampleMaker
     void create_example()
     {
         for(int i = from; i < to; i++) {
-            examples.push_back(new example(lines[i], weights));
+            examples.push_back(new Example(lines[i], weights));
         }
     }
 

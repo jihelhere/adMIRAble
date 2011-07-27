@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ranker.hh"
+#include "Predictor.hh"
 
 int main(int argc, char** argv) {
     if(argc < 2 || argc > 3) {
         fprintf(stderr, "usage: %s <model> [num-candidates]\n", argv[0]);
         return 1;
     }
-    ranker::predictor model(1, std::string(argv[1]));
+    ranker::Predictor model(1, std::string(argv[1]));
     int num_candidates = -1;
     if(argc == 3) num_candidates = strtol(argv[2], NULL, 10);
 
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
                         x.loss = value_as_double;
                     } else {
                         int location = strtol(token, NULL, 10);
-                        x.features.push_back(ranker::feature(location, value_as_double));
+                        x.features.push_back(ranker::Feature(location, value_as_double));
                     }
                 }
             }
