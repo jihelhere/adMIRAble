@@ -16,13 +16,13 @@ int main(int argc, char** argv) {
     size_t buffer_length = 0;
     ssize_t length = 0;
 
-    std::vector<ranker::example> examples;
+    std::vector<ranker::Example> examples;
     while(0 <= (length = getline(&buffer, &buffer_length, stdin))) {
         if(length == 1) {
             fprintf(stdout, "%d\n", model.predict(examples));
             examples.clear();
         } else if(num_candidates == -1 || (int) examples.size() < num_candidates) {
-            ranker::example x;
+            ranker::Example x;
             char *inputstring = buffer;
             char *token = NULL; 
             token =  strsep(&inputstring, " \t"); // skip label

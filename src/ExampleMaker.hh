@@ -5,10 +5,10 @@
 #include <unordered_map>
 #include <thread>
 
-#include "Example.hh"
+#include "example.hh"
 
 namespace ranker {
-struct example_maker
+struct ExampleMaker
 {
     std::thread my_thread;
 
@@ -19,10 +19,10 @@ struct example_maker
     int from;
     int to;
 
-    example_maker(std::vector<char*> &l, std::vector<double>& w)
+    ExampleMaker(std::vector<char*> &l, std::vector<double>& w)
         : lines(l), weights(w), examples() {};
 
-    ~example_maker() {
+    ~ExampleMaker() {
         for(auto example = examples.begin(); example != examples.end(); example++) {
             delete *example;
         }
@@ -43,7 +43,7 @@ struct example_maker
     {
         this->from = from;
         this->to = to > (int) lines.size() ? lines.size() : to;
-        my_thread = std::thread(&example_maker::create_example, this);
+        my_thread = std::thread(&ExampleMaker::create_example, this);
         //create_example();
     }
 

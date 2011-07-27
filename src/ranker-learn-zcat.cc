@@ -16,8 +16,8 @@
 #include <thread>
 
 #include "utils.h"
-#include "Example.hh"
-#include "ExampleMaker.hh"
+#include "example.hh"
+#include "example_maker.hh"
 #include "MiraOperator.hh"
 
 #define CLIP 0.05
@@ -94,7 +94,7 @@ int compute_num_examples(const char* filename)
 }
 
 
-double process(char* filename, std::vector<double> &weights, bool alter_model, int num_threads, mira_operator& mira) 
+double process(char* filename, std::vector<double> &weights, bool alter_model, int num_threads, MiraOperator& mira) 
 {
   int num = 0;
   int errors = 0;
@@ -123,27 +123,27 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
 
     // empty line -> end of examples for this instance
     else {
-      std::vector<example_maker*> examplemakers(num_threads, NULL);
+      std::vector<ExampleMaker*> exampleMakers(num_threads, NULL);
       
       for(int i = 0; i < num_threads; ++i) {
-      	examplemakers[i] = new example_maker(lines, weights);
-      	examplemakers[i]->start(i*lines.size()/num_threads, (i+1)*lines.size()/num_threads);
+      	exampleMakers[i] = new ExampleMaker(lines, weights);
+      	exampleMakers[i]->start(i*lines.size()/num_threads, (i+1)*lines.size()/num_threads);
       }
 
       
-      // fprintf(stderr, "converting examplemakers to examples\n");
-      for(auto i = examplemakers.begin(); i != examplemakers.end(); ++i) {
+      // fprintf(stderr, "converting exampleMakers to examples\n");
+      for(auto i = exampleMakers.begin(); i != exampleMakers.end(); ++i) {
 	(*i)->join();
       }
     
-      std::vector<example*> examples;
+      std::vector<Example*> examples;
     
       //fprintf(stderr, "creating vectors of examples\n");
-      for(auto maker = examplemakers.begin(); maker != examplemakers.end(); ++maker) {
+      for(auto maker = exampleMakers.begin(); maker != exampleMakers.end(); ++maker) {
 	examples.insert(examples.end(), (*maker)->examples.begin(), (*maker)->examples.end());
       }
       
-      // fprintf(stderr, "%d %d %d\n", examplemakers.size(), examples.size(), lines.size());
+      // fprintf(stderr, "%d %d %d\n", exampleMakers.size(), examples.size(), lines.size());
       assert(examples.size() == lines.size());
     
  
@@ -152,7 +152,7 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
     
       one_best_loss += examples[0]->loss;
 
-      example* oracle = examples[0];
+      Example* oracle = examples[0];
       for(unsigned i = 0; i < examples.size(); ++i) {
 	if(examples[i]->loss < oracle->loss) 
 	  oracle = examples[i];
@@ -162,7 +162,7 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
       //fprintf(stdout, "num examples = %d\n", examples.size());
     
       // sort the examples by score
-      sort(examples.begin(), examples.end(), example::example_ptr_desc_score_order());
+      sort(examples.begin(), examples.end(), Example::example_ptr_desc_score_order());
       avg_loss += examples[0]->loss;
     
       for(unsigned int i = 0; i < examples.size(); ++i) {
@@ -187,14 +187,14 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
     
       // reset data structures for next sentence
     
-      for(unsigned i = 0; i < examplemakers.size(); ++i) {
-	delete examplemakers[i];
+      for(unsigned i = 0; i < exampleMakers.size(); ++i) {
+	delete exampleMakers[i];
       }
       for(unsigned i = 0; i < lines.size(); ++i) {
 	free(lines[i]);
       }
       lines.clear();
-      examplemakers.clear();
+      exampleMakers.clear();
     }
   }
   
@@ -337,7 +337,7 @@ int main(int argc, char** argv) {
     for(unsigned iteration = 0; iteration < unsigned(loop); ++iteration) {
       fprintf(stderr, "iteration %d\n", iteration);
 
-      mira_operator mira(loop, iteration, num_examples, clip, weights, avgWeights);
+      MiraOperator mira(loop, iteration, num_examples, clip, weights, avgWeights);
       (void) process(trainset, weights, true, num_threads, mira);
       // averaging for next iteration
       for(unsigned int i = 0; i < avgWeights.size(); ++i) {

@@ -8,29 +8,29 @@
 
 namespace ranker {
 
-struct feature {
+struct Feature {
     unsigned id;
     double value;
-    feature(int _id, double _value) : id(_id), value(_value) {};
-    bool operator<(const feature &peer) const {
+    Feature(int _id, double _value) : id(_id), value(_value) {};
+    bool operator<(const Feature &peer) const {
         return value < peer.value;
     }
 };
 
-struct example {
+struct Example {
   double loss;
   double score;
 
   int label;
-  std::vector<feature> features;
+  std::vector<Feature> features;
   
-  example() : loss(0.0), score(0.0), label(0), features() {};
+  Example() : loss(0.0), score(0.0), label(0), features() {};
 
 
   // create an example from a line 'label fts:val .... fts:val'
   // side-effects : update size of weights and avgweights
   // unknown features are *ignored*
-  example(char*& buffer, std::vector<double>& weights)
+  Example(char*& buffer, std::vector<double>& weights)
     : loss(0.0), score(0.0), label(0), features()
   {
     // read a line and fill label/features
@@ -60,7 +60,7 @@ struct example {
     } else {
 
         int location = strtol(token, NULL, 10);
-        features.push_back(feature(location, value_as_double));
+        features.push_back(Feature(location, value_as_double));
         if(location < (int) weights.size()) this->score += value_as_double * weights[location];
         //fprintf(stderr, "%d:%g ", location, value_as_double);
     }
@@ -73,7 +73,7 @@ struct example {
   // for sorting examples
   struct example_ptr_desc_score_order 
   {
-      bool operator()(const example* i, const example* j) {return (i->score > j->score);}
+      bool operator()(const Example* i, const Example* j) {return (i->score > j->score);}
   };
 
 };

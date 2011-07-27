@@ -5,11 +5,11 @@
 #include <unordered_map>
 #include <algorithm>
 
-#include "Example.hh"
+#include "example.hh"
 
 namespace ranker {
 
-struct mira_operator
+struct MiraOperator
 {
   int loop;
   int iteration; 
@@ -20,9 +20,9 @@ struct mira_operator
   std::vector<double> &avgWeights;
 
   int num;
-  example* oracle;
+  Example* oracle;
 
-  mira_operator(int loop_,  int iteration_, int num_examples_, double clip_,
+  MiraOperator(int loop_,  int iteration_, int num_examples_, double clip_,
 		std::vector<double> &weights_, std::vector<double> &avgWeights_)
     : 
     loop(loop_), iteration(iteration_), num_examples(num_examples_),
@@ -31,7 +31,7 @@ struct mira_operator
     num(0), oracle(NULL)
   {};
 
-  void update(example* oracle_, int num_)
+  void update(Example* oracle_, int num_)
   {
     oracle = oracle_;
     num = num_;
@@ -39,13 +39,13 @@ struct mira_operator
   }
 
   inline
-  bool incorrect_rank(const example * example) 
+  bool incorrect_rank(const Example * example) 
   {
     return example->score > oracle->score || (example->score == oracle->score && example->loss > oracle->loss);
   }
 
 
-  void operator()(example * example)
+  void operator()(Example * example)
   {
     //fprintf(stdout, "%g %g\n", example->score, example->loss);
     

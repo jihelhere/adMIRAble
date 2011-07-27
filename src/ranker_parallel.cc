@@ -22,7 +22,7 @@ class input_thread {
         while(!queue->finished()) {
             if(!queue->empty()) {
                 std::pair<char*,std::promise<double>*> input = queue->pop();
-                ranker::example x;
+                ranker::Example x;
                 char *inputstring = input.first;
                 char *token = NULL; 
                 token =  strsep(&inputstring, " \t"); // skip label
