@@ -4,6 +4,8 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
+#include <queue>
 
 /* This class implements a blocking queue of jobs that are exectued by a
  * background thread.  Results should be stored in std::promise instances so
@@ -43,19 +45,17 @@ class ThreadedQueue {
     std::condition_variable queue_empty;
     int start, end, size, max_size;
     bool finished, running;
-    T* queue;
+    std::queue<T> queue;
 
     public:
 
     // _max_size is the maximum size of the queue
     ThreadedQueue(int _max_size) : start(0), end(0), size(0), max_size(_max_size), finished(false), running(false) {
-        queue = new T[max_size];
         thread = std::thread(&ThreadedQueue<T>::run, this);
     }
 
     // warning: you must call drain before destructing the object
     ~ThreadedQueue() {
-        delete queue;
     }
 
     // this is where you implement stuff
@@ -73,7 +73,11 @@ class ThreadedQueue {
                 }
                 can_process.wait(l);
             }
-            process(queue[start]);
+            T item = queue.front();//[start];
+            guard.unlock();
+            process(item);
+            guard.lock();
+            queue.pop();
             start = (start + 1) % max_size;
             size--;
             can_enqueue.notify_one();
@@ -84,8 +88,9 @@ class ThreadedQueue {
     void enqueue(T item) {
         std::unique_lock<std::mutex> l(guard);
         assert(!finished);
-        while(size == max_size) can_enqueue.wait(l);
-        queue[end] = item;
+        while(size == max_size) can_enqueue.wait_for(l, std::chrono::duration<int,std::milli>(10));
+        //queue[end] = item;
+        queue.push(item);
         end = (end + 1) % max_size;
         size++;
         can_process.notify_one();
@@ -98,9 +103,10 @@ class ThreadedQueue {
             finished = true;
             while(running) {
                 can_process.notify_all(); // unlock thread
-                queue_empty.wait(l); // wait for it to finish
+                queue_empty.wait_for(l, std::chrono::duration<int,std::milli>(10)); // wait for it to finish
             }
             thread.join();
+            while(thread.joinable()) sched_yield();
         }
     }
 };

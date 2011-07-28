@@ -7,7 +7,7 @@ libranker_0_1_la_SOURCES = libranker.cc
 libranker_0_1_la_CXXFLAGS = $(CXXFLAGS)
 
 ranker_parallel_SOURCES = ranker_parallel.cc 
-ranker_parallel_LDFLAGS = -lpthread
+ranker_parallel_LDFLAGS = -pthread
 
 ranker_main_SOURCES = ranker_main.cc 
 
@@ -15,7 +15,7 @@ ranker_learn_iteration_SOURCES = ranker-learn-iteration.cc utils.c
 ranker_learn_iteration_LDFLAGS = -lm
 
 ranker_learn_zcat_SOURCES = example.hh exampleMaker.hh MiraOperator.hh ranker-learn-zcat.cc utils.c utils.h
-ranker_learn_zcat_LDFLAGS= -lm -lpthread
+ranker_learn_zcat_LDFLAGS= -lm -pthread
 
 ranker_predict_SOURCES = ranker-predict.cc 
 ranker_predict_LDFLAGS = -lm -lz
