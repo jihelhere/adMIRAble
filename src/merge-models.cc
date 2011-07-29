@@ -14,12 +14,12 @@ int main(int argc, char** argv) {
         exit(1);
     }
     unordered_map<string, double> model;
-    int buffer_size = 1024;
-    char* buffer = (char*) malloc(buffer_size);
+    size_t buffer_size = 0;
+    char* buffer = NULL;
     int i;
     for(i = 1; i < argc; i++) {
         FILE* input = open_pipe(argv[i], "r");
-        while(read_line(&buffer, &buffer_size, input)) {
+        while(getline(&buffer, &buffer_size, input)) {
             char* value = strchr(buffer, ' ');
             *value = '\0';
             string name = buffer;

@@ -72,9 +72,9 @@ int compute_num_examples(const char* filename)
 
     int num = 0;
 
-    int buffer_size = 1024;
-    char* buffer = (char*) malloc(buffer_size);
-    while(read_line(&buffer,&buffer_size,fp)) {
+    size_t buffer_size = 0;
+    char* buffer = NULL;
+    while(getline(&buffer,&buffer_size,fp)) {
 
         //if line is empty -> we've read all the examples
         if(buffer[0] == '\n') {
@@ -105,13 +105,13 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
         return 1;
     }
 
-    int buffer_size = 1024;
-    char* buffer = (char*) malloc(buffer_size);
+    size_t buffer_size = 0;
+    char* buffer = NULL;
 
     std::vector<char*> lines;
 
     //read examples
-    while(read_line(&buffer, &buffer_size, fp))  {
+    while(getline(&buffer, &buffer_size, fp))  {
 
         // store example lines
         if(buffer[0] != '\n') {

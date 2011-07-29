@@ -112,15 +112,3 @@ int close_pipe(FILE* fp) {
     return status;
 }
 
-int read_line(char** buffer, int* buffer_size, FILE* fp)
-{
-    if(NULL == fgets(*buffer, *buffer_size, fp)) return 0;
-    while((*buffer)[strlen(*buffer) - 1] != '\n') {
-        *buffer_size *= 2;
-        *buffer = (char*) realloc(*buffer, *buffer_size);
-        if(fgets(*buffer + strlen(*buffer), *buffer_size - strlen(*buffer), fp) == NULL) return 0;
-    }
-    return 1;
-}
-
-

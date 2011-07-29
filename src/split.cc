@@ -32,15 +32,15 @@ int main(int argc, char** argv) {
     fprintf(stdout, "%d\n", num_examples);
 
     FILE* input = open_pipe(argv[1], "r");
-    int buffer_size = 1024;
-    char* buffer = (char*) malloc(buffer_size);
+    size_t buffer_size = 0;
+    char* buffer = NULL;
     int num_output = 0;
     int current_shard = 1;
     char* output_filename;
     asprintf(&output_filename, "%s.%d.gz", argv[3], current_shard);
     FILE* output = open_pipe(output_filename, "w");
     std::vector<char*> lines;
-    while(read_line(&buffer, &buffer_size, input)) {
+    while(getline(&buffer, &buffer_size, input)) {
         if(buffer[0] == '\n') {
             int i;
             for(i = 0; i < (int) lines.size(); ++i) {
