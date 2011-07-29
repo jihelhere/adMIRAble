@@ -22,25 +22,7 @@ int main(int argc, char** argv) {
             fprintf(stdout, "%d\n", model.predict(examples));
             examples.clear();
         } else if(num_candidates == -1 || (int) examples.size() < num_candidates) {
-            ranker::Example x;
-            char *inputstring = buffer;
-            char *token = NULL; 
-            token =  strsep(&inputstring, " \t"); // skip label
-            for(;(token = strsep(&inputstring, " \t\n"));) {
-                if(!strcmp(token,"")) continue;
-                char* value = strrchr(token, ':');
-                if(value != NULL) {
-                    *value = '\0';
-                    double value_as_double = strtod(value + 1, NULL);
-                    //nbe is the loss, not a feature
-                    if(!strcmp(token, "nbe")) {
-                        x.loss = value_as_double;
-                    } else {
-                        int location = strtol(token, NULL, 10);
-                        x.features.push_back(ranker::Feature(location, value_as_double));
-                    }
-                }
-            }
+            ranker::Example x(buffer);
             examples.push_back(x);
         }
     }

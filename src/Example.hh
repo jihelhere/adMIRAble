@@ -20,55 +20,45 @@ struct Feature {
 struct Example {
   double loss;
   double score;
-
-  int label;
   std::vector<Feature> features;
   
-  Example() : loss(0.0), score(0.0), label(0), features() {};
+  Example() : loss(0.0), score(0.0), features() { }
 
 
-  // create an example from a line 'label fts:val .... fts:val'
-  // side-effects : update size of weights and avgweights
-  // unknown features are *ignored*
-  Example(char*& buffer, std::vector<double>& weights)
-    : loss(0.0), score(0.0), label(0), features()
-  {
-    // read a line and fill label/features
-    
-    char * inputstring = buffer;
-    char *token = NULL; 
-    if ((token =  strsep(&inputstring, " \t")) != NULL) {
-      if(!strcmp(token, "1")) {
-	this->label = 1;
-      }
-    } 
-    
-    for(;(token = strsep(&inputstring, " \t\n"));) {
-      if(!strcmp(token,"")) continue;
-      
-      char* value = strrchr(token, ':');
-      if(value != NULL) {
-	*value = '\0';
-	double value_as_double = strtod(value + 1, NULL);
-	
-	//assert(!isinf(value_as_double));
-	//assert(!isnan(value_as_double));
-	
-	//nbe is the loss, not a feature
-	if(!strcmp(token, "nbe")) {
-	  this->loss = value_as_double;
-    } else {
-
-        int location = strtol(token, NULL, 10);
-        features.push_back(Feature(location, value_as_double));
-        if(location < (int) weights.size()) this->score += value_as_double * weights[location];
-        //fprintf(stderr, "%d:%g ", location, value_as_double);
-    }
-      }
-    }
-    //fprintf(stderr, "\n");
+  Example(const char* input) : loss(0.0), score(0.0), features() {
+      load(input);
   }
 
+  // load an example from a line 'loss feature_id:value .... feature_id:value' # comment
+  // no error checking
+  void load(const char* line) {
+      features.clear();
+      char *input = strdup(line);
+      char *token = NULL; 
+      char *comment = strchr(input, '#');
+      if(comment != NULL) *comment = '\0'; // skip comments
+      token =  strsep(&input, " \t"); // read loss
+      loss = strtod(token, NULL);
+      for(;(token = strsep(&input, " \t\n"));) {
+          if(!strcmp(token,"")) continue;
+          char* value = strrchr(token, ':');
+          if(value != NULL) { // read feature_id:value
+              *value = '\0';
+              double value_as_double = strtod(value + 1, NULL);
+              int feature_id = strtol(token, NULL, 10);
+              features.push_back(ranker::Feature(feature_id, value_as_double));
+          }
+      }
+      free(input);
+  }
+
+  double compute_score(std::vector<double> weights) {
+      score = 0;
+      for(auto i = features.begin(); i != features.end(); ++i) {
+          score += i->value * weights[i->id];
+      }
+      return score;
+  }
 
   // for sorting examples
   struct example_ptr_desc_score_order 

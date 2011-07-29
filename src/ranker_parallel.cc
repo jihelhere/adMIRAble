@@ -17,26 +17,7 @@ class input_thread: public ThreadedQueue<std::pair<std::string,Result<double>>> 
 
     public:
     void process(std::pair<std::string,Result<double>>& input) {
-        ranker::Example x;
-        char *inputstring = strdup(input.first.c_str());
-        char *token = NULL; 
-        token =  strsep(&inputstring, " \t"); // skip label
-        for(;(token = strsep(&inputstring, " \t\n"));) {
-            if(!strcmp(token,"")) continue;
-            char* value = strrchr(token, ':');
-            if(value != NULL) {
-                *value = '\0';
-                double value_as_double = strtod(value + 1, NULL);
-                //nbe is the loss, not a feature
-                if(!strcmp(token, "nbe")) {
-                    x.loss = value_as_double;
-                } else {
-                    int location = strtol(token, NULL, 10);
-                    x.features.push_back(ranker::Feature(location, value_as_double));
-                }
-            }
-        }
-        free(inputstring);
+        ranker::Example x(input.first.c_str());
         double score = model.compute_score(x);
         input.second.set_result(score);
     }
