@@ -1,6 +1,6 @@
 #AM_CXXFLAGS=
 
-bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_sentence drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
+bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_instance drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
 
 lib_LTLIBRARIES = libranker-0.1.la
 libranker_0_1_la_SOURCES = libranker.cc
@@ -22,7 +22,7 @@ ranker_predict_LDFLAGS = -lm -lz
 
 count_SOURCES = count.cc
 
-count_by_sentence_SOURCES = count_by_sentence.cc
+count_by_instance_SOURCES = count_by_instance.cc
 
 drop_common_features_SOURCES = drop_common_features.cc utils.c utils.h
 

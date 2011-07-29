@@ -26,17 +26,13 @@ int main(int argc, char** argv) {
 
     vector<double> weights;
     unordered_map<string, int> features;
-    int buffer_size = 1024;
-    char* buffer = (char*) malloc(buffer_size);
+    size_t buffer_size = 0;
+    char* buffer = NULL;
+    int length = 0;
 
     int next_id = 0;
-    while(NULL != fgets(buffer, buffer_size, fp)) {
-        while(buffer[strlen(buffer) - 1] != '\n') {
-            buffer_size *= 2;
-            buffer = (char*) realloc(buffer, buffer_size);
-            if(fgets(buffer + strlen(buffer), buffer_size - strlen(buffer), fp) == NULL) break;
-        }
-        buffer[strlen(buffer) - 1] = '\0'; // chop
+    while(0 < (length = getline(&buffer, &buffer_size, fp))) {
+        buffer[length - 1] = '\0'; // chop
         char* weight1 = strchr(buffer, ' ');
         *weight1 = '\0';
         char* weight2 = strchr(weight1 + 1, ' ');
@@ -62,13 +58,7 @@ int main(int argc, char** argv) {
     int is_one_best = 1;
     int argmax = 0;
     int current = 0;
-    while(NULL != fgets(buffer, buffer_size, stdin)) {
-        while(buffer[strlen(buffer) - 1] != '\n') {
-            buffer_size *= 2;
-            buffer = (char*) realloc(buffer, buffer_size);
-            if(fgets(buffer + strlen(buffer), buffer_size - strlen(buffer), stdin) == NULL) break;
-        }
-
+    while(0 < (length = getline(&buffer, &buffer_size, stdin))) {
         if(buffer[0] == '\n') {
             avg_loss += loss_of_max;
             if(num % 10 == 0) fprintf(stderr, "\r%d %f/%f", num, avg_loss / num, one_best_loss / num);

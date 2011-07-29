@@ -9,9 +9,8 @@
 #include <algorithm>
 #include <iostream>
 
-struct sort_func {
-    bool operator()(const std::pair<std::string, int>& p1, const std::pair<std::string, int>& p2)
-    {
+struct sort_func { 
+    bool operator()(const std::pair<std::string, int>& p1, const std::pair<std::string, int>& p2) {
         return p1.second > p2.second;
     };
 };
@@ -21,15 +20,16 @@ int main(int, char**)
 {
     std::unordered_map<std::string, int> global_counts;
     //  std::unordered_map<std::string, int> local_counts;
-    //std::unordered_set<std::string> local_counts;
+    std::unordered_set<std::string> local_counts;
 
     int num_sentence = 0;
 
     size_t buffer_size = 0;
     char* buffer = NULL;
+
     while(0 < getline(&buffer, &buffer_size, stdin)) {
         if(*buffer == '\n') {
-/*
+
             for (auto i(local_counts.begin()); i != local_counts.end(); ++i)  {
                 //++global_counts[i->first];
                 ++global_counts[*i];
@@ -38,7 +38,7 @@ int main(int, char**)
             local_counts.clear();
 
             fprintf(stderr, "processed %d sentences\r", ++num_sentence);
-*/
+
         } else {
             char* token = strtok(buffer, " \t");
 
@@ -46,9 +46,8 @@ int main(int, char**)
                 char* name = strrchr(token, ':');
                 if(name != NULL) {
                     *name = '\0';
-                    ++global_counts[std::string(token)];
 
-                    //local_counts.insert(std::string(token));
+                    local_counts.insert(std::string(token));
                     //	  ++local_counts[std::string(token)];
                 }
             }

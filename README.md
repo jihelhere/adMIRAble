@@ -40,7 +40,7 @@ Predictions (examples must contain an ignored value for the loss):
 Utilities:
 
 1. count: count number of occurence of features
-2. count_by_sentence: count number of instances that contain a feature
+2. count_by_instance: count number of instances that contain a feature
 3. drop_common_features: drop features that are in all candidates of an instance
 4. filter_and_map: remove features that appear less than n times according to a count file and map them to ids
 5. mlcomp_to_reranker.py: create compatible training data from mlcomp/libsvm file format
