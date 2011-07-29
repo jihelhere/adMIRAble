@@ -20,9 +20,8 @@ else
 fi
 
 # libtool
-AC_PROG_LIBTOOL
-LT_INIT
-AC_CONFIG_MACRO_DIR([m4])
+#AC_PROG_LIBTOOL
+#AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
 AC_PROG_CXX

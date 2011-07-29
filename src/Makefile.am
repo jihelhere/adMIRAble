@@ -2,10 +2,6 @@
 
 bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_instance drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
 
-lib_LTLIBRARIES = libranker-0.1.la
-libranker_0_1_la_SOURCES = libranker.cc
-libranker_0_1_la_CXXFLAGS = $(CXXFLAGS)
-
 ranker_parallel_SOURCES = ranker_parallel.cc 
 ranker_parallel_LDFLAGS = -pthread
 

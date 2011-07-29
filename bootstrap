@@ -6,8 +6,10 @@ then
     rm Makefile.in src/Makefile.in
 fi
 
-libtoolize
+#libtoolize
 automake --add-missing
+autoheader
+aclocal
 autoreconf
 
 ./configure
