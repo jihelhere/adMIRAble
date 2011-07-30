@@ -1,15 +1,16 @@
 #!/bin/bash
 
-if [ -f Makefile ]
+if [ $1 == cleanup ]
 then
-    make distclean
-    rm Makefile.in src/Makefile.in
+    make clean
+    rm -rf depcomp install-sh missing Makefile Makefile.in stamp-h1 config.status configure config.log config.h* autom4te.cache/ aclocal.m4 src/.deps src/Makefile src/Makefile.in INSTALL
+else
+    #libtoolize
+    aclocal
+    autoconf
+    autoheader
+    automake --add-missing --foreign
+    autoreconf
+
+    ./configure
 fi
-
-#libtoolize
-automake --add-missing
-autoheader
-aclocal
-autoreconf
-
-./configure
