@@ -3,7 +3,7 @@
 if [ $1 == cleanup ]
 then
     make clean
-    rm -rf depcomp install-sh missing Makefile Makefile.in stamp-h1 config.status configure config.log config.h* autom4te.cache/ aclocal.m4 src/.deps src/Makefile src/Makefile.in INSTALL
+    rm -rf depcomp install-sh missing Makefile Makefile.in stamp-h1 config.status configure config.log config.h* autom4te.cache/ aclocal.m4 src/.deps src/Makefile src/Makefile.in INSTALL config.guess config.sub ltmain.sh libtool m4/ src/.libs
 else
     #libtoolize
     aclocal
