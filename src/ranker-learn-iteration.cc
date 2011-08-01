@@ -141,7 +141,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
     Example* oracle = NULL;
     Example* official_oracle = NULL;
 
-    while(getline(&buffer, &buffer_size,fp)) {
+    while(0 < getline(&buffer, &buffer_size,fp)) {
 
         //if line is empty -> we've read all the examples
         if(buffer[0] == '\n') {
@@ -412,7 +412,7 @@ int main(int argc, char** argv) {
         int next_id = 0;
         size_t buffer_size = 0;
         char* buffer = NULL;
-        while(getline(&buffer, &buffer_size, fp)) {
+        while(0 < getline(&buffer, &buffer_size, fp)) {
             buffer[strlen(buffer) - 1] = '\0'; // chop
             char* weight = strchr(buffer, ' ');
             *weight = '\0';

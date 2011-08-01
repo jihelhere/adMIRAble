@@ -1,17 +1,17 @@
 #AM_CXXFLAGS=
 
-bin_PROGRAMS = ranker-learn-zcat ranker-predict count count_by_instance drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
+bin_PROGRAMS = ranker-learn ranker-predict count count_by_instance drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
 
-ranker_parallel_SOURCES = ranker_parallel.cc 
+ranker_parallel_SOURCES = ranker_parallel.cc Predictor.hh
 ranker_parallel_LDFLAGS = -pthread
 
-ranker_main_SOURCES = ranker_main.cc 
+ranker_main_SOURCES = ranker_main.cc Predictor.hh
 
 ranker_learn_iteration_SOURCES = ranker-learn-iteration.cc utils.c
 ranker_learn_iteration_LDFLAGS = -lm
 
-ranker_learn_zcat_SOURCES = example.hh exampleMaker.hh MiraOperator.hh ranker-learn-zcat.cc utils.c utils.h
-ranker_learn_zcat_LDFLAGS= -lm -pthread
+ranker_learn_SOURCES = example.hh exampleMaker.hh MiraOperator.hh ranker-learn.cc
+ranker_learn_LDFLAGS= -lm -pthread
 
 ranker_predict_SOURCES = ranker-predict.cc 
 ranker_predict_LDFLAGS = -lm -lz

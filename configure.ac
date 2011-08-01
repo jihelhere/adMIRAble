@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.65])
 AC_INIT([admirable], [0.001], [BUG-REPORT-ADDRESS])
-AC_CONFIG_SRCDIR([src/ranker-learn-zcat.cc])
+AC_CONFIG_SRCDIR([src/ranker-learn.cc])
 AM_INIT_AUTOMAKE #([-Wall -Werror foreign])
 AC_CONFIG_HEADERS([config.h])
 AC_MSG_CHECKING(whether to enable debugging)

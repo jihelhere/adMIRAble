@@ -55,7 +55,7 @@ struct Example {
   double compute_score(std::vector<double> weights) {
       score = 0;
       for(auto i = features.begin(); i != features.end(); ++i) {
-          score += i->value * weights[i->id];
+          if(i->id < weights.size()) score += i->value * weights[i->id];
       }
       return score;
   }

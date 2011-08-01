@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 import sys
 
 if len(sys.argv) != 2:
@@ -12,14 +12,13 @@ for line in sys.stdin:
     for label in range(1, num_labels + 1):
         output = []
         if tokens[0] == str(label):
-            output.append("1")
-            output.append("nbe:0")
-        else:
             output.append("0")
-            output.append("nbe:1")
+        else:
+            output.append("1")
         for token in tokens[1:]:
-            output.append("%d#%s" % (label, token))
-        print " ".join(output)
-    print
+            feature, value = token.split(":")
+            output.append("%d_%s:%s" % (label, feature, value))
+        sys.stdout.write(" ".join(output) + "\n")
+    sys.stdout.write("\n")
 
 

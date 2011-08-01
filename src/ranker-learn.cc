@@ -12,10 +12,11 @@
 #include <cassert>
 
 #include <getopt.h>
+#include <fcntl.h>
 
 #include <thread>
 
-#include "utils.h"
+//#include "utils.h"
 #include "Example.hh"
 #include "ExampleMaker.hh"
 #include "MiraOperator.hh"
@@ -36,14 +37,22 @@ void  print_help_message(char *program_name)
     fprintf(stderr, "      --clip,-c    <double>         : clip value (default is %f)\n", CLIP);
     fprintf(stderr, "      --iter,-i    <int>            : nb of iterations (default is %d)\n", LOOP);
     fprintf(stderr, "      --threads,-j <int>            : nb of threads (default is %d)\n", NUM_THREADS);
-    fprintf(stderr, "      --mode,-m    <train|predict>  : running mode\n");
+    fprintf(stderr, "      --filter,-f  <command>        : filter input through command (\"%%s\" is replaced by the filename)\n");
+    //fprintf(stderr, "      --mode,-m    <train|predict>  : running mode\n");
 
     fprintf(stderr, "      -help,-h                    : print this message\n");
 }
 
-FILE* openpipe(const char* filename) {
+/* Open a file through an optional filter. If filter contains %s, filename is
+ * used in place, otherwise it is piped through stdin.
+ */
+
+FILE* openpipe(const char* filename, const char* filter) {
     int fd[2];
     pid_t childpid;
+    if(filter == NULL) {
+        return fopen(filename, "r");
+    }
     if(pipe(fd) == -1) {
         perror("openpipe/pipe");
         exit(1);
@@ -55,9 +64,21 @@ FILE* openpipe(const char* filename) {
     if(childpid == 0) {
         close(fd[0]);
         dup2(fd[1], STDOUT_FILENO);
-        //	execlp("zcat", "zcat", "-c", filename, (char*) NULL);
-        execlp("pigz", "pigz", "-f", "-d", "-c", filename, (char*) NULL);
+        char* command = NULL;
+        if(NULL != strstr(filter, "%s")) {
+            asprintf(&command, filter, filename);
+        } else {
+            int input = open(filename, O_RDONLY);
+            if(input < 0) {
+                perror("openpipe/open");
+                exit(1);
+            }
+            dup2(input, STDIN_FILENO);
+            command = strdup(filter);
+        }
+        execlp("sh", "sh", "-c", command, (char*) NULL);
         perror("openpipe/execl");
+        free(command);
         exit(1);
     }
     close(fd[1]);
@@ -65,26 +86,28 @@ FILE* openpipe(const char* filename) {
     return output;
 }
 
-int compute_num_examples(const char* filename)
+int compute_num_examples(const char* filename, const char* filter)
 {
-    FILE* fp = openpipe(filename);
+    FILE* fp = openpipe(filename, filter);
     if(!fp) return 0;
 
     int num = 0;
 
     size_t buffer_size = 0;
     char* buffer = NULL;
-    while(getline(&buffer,&buffer_size,fp)) {
+    while(0 < getline(&buffer,&buffer_size,fp)) {
 
-        //if line is empty -> we've read all the examples
+        //if line is empty -> we've read one instance
         if(buffer[0] == '\n') {
             ++num;
             if(num % 100 ==0) fprintf(stderr, "%d\r", num);
         }
         if(feof(fp)) break;
     }
-    int status;
-    wait(&status);
+    if(filter != NULL) {
+        int status;
+        wait(&status);
+    }
     free(buffer);
     fclose(fp);
 
@@ -92,14 +115,14 @@ int compute_num_examples(const char* filename)
 }
 
 
-double process(char* filename, std::vector<double> &weights, bool alter_model, int num_threads, ranker::MiraOperator& mira) 
+double process(const char* filename, const char* filter, std::vector<double> &weights, bool alter_model, int num_threads, ranker::MiraOperator& mira) 
 {
     int num = 0;
     int errors = 0;
     double avg_loss = 0;
     double one_best_loss = 0;
 
-    FILE* fp = openpipe(filename);
+    FILE* fp = openpipe(filename, filter);
     if(!fp) {
         fprintf(stderr, "ERROR: cannot open \"%s\"\n", filename);
         return 1;
@@ -111,7 +134,7 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
     std::vector<char*> lines;
 
     //read examples
-    while(getline(&buffer, &buffer_size, fp))  {
+    while(0 < getline(&buffer, &buffer_size, fp))  {
 
         // store example lines
         if(buffer[0] != '\n') {
@@ -120,7 +143,7 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
 
 
         // empty line -> end of examples for this instance
-        else {
+        else if(lines.size() > 0) {
             std::vector<ranker::ExampleMaker*> exampleMakers(num_threads, NULL);
 
             for(int i = 0; i < num_threads; ++i) {
@@ -199,8 +222,10 @@ double process(char* filename, std::vector<double> &weights, bool alter_model, i
     fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
 
     fclose(fp);
-    int status;
-    wait(&status);
+    if(filter != NULL) {
+        int status;
+        wait(&status);
+    }
     free(buffer);
 
     return avg_loss/num;
@@ -214,6 +239,7 @@ int main(int argc, char** argv) {
     double clip = CLIP;
     int loop = LOOP;
     int num_threads = NUM_THREADS;
+    char* filter = NULL;
 
     //char mode_def[] = "train";
     //char * mode = mode_def;
@@ -243,7 +269,7 @@ int main(int argc, char** argv) {
         // int to store arg position
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "s:d:t:c:i:j:m:hv", long_options, &option_index);
+        c = getopt_long (argc, argv, "s:d:t:c:i:j:m:f:hv", long_options, &option_index);
 
         // Detect the end of the options
         if (c == -1)
@@ -300,6 +326,11 @@ int main(int argc, char** argv) {
                 num_threads = atoi(optarg);
                 break;
 
+            case 'f':
+                fprintf(stderr, "filter: %s\n", optarg);
+                filter = optarg;
+                break;
+
                 // case 'm':
                 //   fprintf (stderr, "mode is: %s (but I don't care ;)\n", optarg);
                 //   mode = optarg;
@@ -322,7 +353,7 @@ int main(int argc, char** argv) {
     } 
 
 
-    int num_examples = compute_num_examples(trainset);
+    int num_examples = compute_num_examples(trainset, filter);
 
     std::vector<double> weights;
     std::vector<double> avgWeights;
@@ -336,7 +367,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "iteration %d\n", iteration);
 
         ranker::MiraOperator mira(loop, iteration, num_examples, clip, weights, avgWeights);
-        (void) process(trainset, weights, true, num_threads, mira);
+        (void) process(trainset, filter, weights, true, num_threads, mira);
         // averaging for next iteration
         for(unsigned int i = 0; i < avgWeights.size(); ++i) {
             if(avgWeights[i] != 0.0)
@@ -344,7 +375,7 @@ int main(int argc, char** argv) {
         }
 
         if(devset) {
-            double d = process(devset, weights, false, num_threads, mira);
+            double d = process(devset, filter, weights, false, num_threads, mira);
             if(dev_loss < 0 || d < dev_loss) {
                 dev_loss = d;
                 saveweights = weights;
@@ -352,7 +383,7 @@ int main(int argc, char** argv) {
         }
 
         if(testset) 
-            (void) process(testset, weights, false, num_threads, mira);
+            (void) process(testset, filter, weights, false, num_threads, mira);
     }
 
 
@@ -360,7 +391,7 @@ int main(int argc, char** argv) {
 
     for(unsigned int i = 0; i < saveweights.size(); ++i) {
         if(saveweights[i] != 0) {
-            fprintf(stdout, "%d 0 %32.31g\n", i, saveweights[i] );
+            fprintf(stdout, "%d %32.31g\n", i, saveweights[i] );
         }
     }
     return 0;

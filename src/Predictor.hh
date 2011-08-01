@@ -9,7 +9,7 @@ namespace ranker {
     struct Predictor {
         int num_threads;
         std::unordered_map<std::string, int> mapping;
-        std::unordered_map<int, double> model;
+        std::vector<double> model;
 
         Predictor(int num_threads, std::string modelname) {
             this->num_threads = num_threads;
@@ -38,11 +38,13 @@ namespace ranker {
                 char* weight1 = strchr(buffer, ' ');
                 *weight1 = '\0';
                 char* weight2 = strchr(weight1 + 1, ' ');
+                int id = strtol(buffer, NULL, 10);
+                if((int) model.size() <= id) model.resize(id + 1);
                 if(weight2 != NULL) {
                     *weight2 = '\0';
-                    model[strtol(buffer, NULL, 10)] = strtod(weight2 + 1, NULL);
+                    model[id] = strtod(weight2 + 1, NULL);
                 } else {
-                    model[strtol(buffer, NULL, 10)] = strtod(weight1 + 1, NULL);
+                    model[id] = strtod(weight1 + 1, NULL);
                 }
             }
             fclose(fp);
@@ -63,10 +65,7 @@ namespace ranker {
                 buffer[length - 1] = '\0'; // chop
                 char* end = strchr(buffer, ' ');
                 *end = '\0';
-                auto found = model.find(next_id);
-                if(found != model.end()) {
-                    mapping[std::string(buffer)] = next_id;
-                }
+                if(next_id < (int) model.size()) mapping[std::string(buffer)] = next_id;
                 next_id++;
             }
             fclose(fp);
@@ -94,7 +93,7 @@ namespace ranker {
         double compute_score(Example& x) {
             double score = 0;
             for(auto i = x.features.begin(); i != x.features.end(); i++) {
-                score += model[i->id] * i->value;
+                if(i->id < model.size()) score += model[i->id] * i->value;
             }
             x.score = score;
             return score;
