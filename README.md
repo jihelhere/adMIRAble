@@ -15,8 +15,7 @@ Dependencies
 ------------
 
 1. a c++0x-aware compiler, for example gcc > 4.0
-2. pigz, a parallel implementation of gzip
-3. autotools
+2. autotools
 
 Compiling
 ---------
@@ -31,11 +30,11 @@ Usage
 
 Training:
 
-    ranker-learn-zcat --train <training-file> --dev <dev-file> --test <test-file> [options]
+    ranker-learn --train <training-file> --dev <dev-file> --test <test-file> [options]
 
 Predictions (examples must contain an ignored value for the loss):
 
-    zcat examples | ranker_main <model> [num-candidates]
+    cat examples | ranker_main <model> [num-candidates]
 
 Utilities:
 
@@ -51,6 +50,14 @@ Experimental parallel training:
 2. split: split corpus in several data shards
 3. ranker-learn-iteration: one iteration of training on a subset of examples
 4. merge-models: merge models at the end of iteration
+
+
+Tutorial
+--------
+
+See test/run_test.sh
+
+Note that you can gzip your example files for saving disk space. Then pass "--filter zcat" to ranker-learn.
 
 Data format
 -----------
