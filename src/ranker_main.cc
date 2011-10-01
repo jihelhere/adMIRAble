@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     ssize_t length = 0;
 
     std::vector<ranker::Example> examples;
-    while(0 <= (length = getline(&buffer, &buffer_length, stdin))) {
+    while(0 <= (length = read_line(&buffer, &buffer_length, stdin))) {
         if(length == 1) {
             fprintf(stdout, "%d\n", model.predict(examples));
             examples.clear();

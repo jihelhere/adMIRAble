@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include "utils.h"
 
 using namespace std;
 
@@ -31,7 +32,7 @@ int main(int argc, char** argv) {
     int length = 0;
 
     int next_id = 0;
-    while(0 < (length = getline(&buffer, &buffer_size, fp))) {
+    while(0 < (length = read_line(&buffer, &buffer_size, fp))) {
         buffer[length - 1] = '\0'; // chop
         char* weight1 = strchr(buffer, ' ');
         *weight1 = '\0';
@@ -58,7 +59,7 @@ int main(int argc, char** argv) {
     int is_one_best = 1;
     int argmax = 0;
     int current = 0;
-    while(0 < (length = getline(&buffer, &buffer_size, stdin))) {
+    while(0 < (length = read_line(&buffer, &buffer_size, stdin))) {
         if(buffer[0] == '\n') {
             avg_loss += loss_of_max;
             if(num % 10 == 0) fprintf(stderr, "\r%d %f/%f", num, avg_loss / num, one_best_loss / num);
@@ -68,7 +69,7 @@ int main(int argc, char** argv) {
             current = 0;
             continue;
         }
-	
+
 	if(current == (limit))
 	  continue;
 

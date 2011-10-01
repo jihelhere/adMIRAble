@@ -14,9 +14,9 @@
 #include <getopt.h>
 #include <fcntl.h>
 
-#include <thread>
+//#include <thread>
 
-//#include "utils.h"
+#include "utils.h"
 #include "Example.hh"
 #include "ExampleMaker.hh"
 #include "MiraOperator.hh"
@@ -95,7 +95,7 @@ int compute_num_examples(const char* filename, const char* filter)
 
     size_t buffer_size = 0;
     char* buffer = NULL;
-    while(0 < getline(&buffer,&buffer_size,fp)) {
+    while(0 < read_line(&buffer,&buffer_size,fp)) {
 
         //if line is empty -> we've read one instance
         if(buffer[0] == '\n') {
@@ -115,7 +115,7 @@ int compute_num_examples(const char* filename, const char* filter)
 }
 
 
-double process(const char* filename, const char* filter, std::vector<double> &weights, bool alter_model, int num_threads, ranker::MiraOperator& mira) 
+double process(const char* filename, const char* filter, std::vector<double> &weights, bool alter_model, int num_threads, ranker::MiraOperator& mira)
 {
     int num = 0;
     int errors = 0;
@@ -134,7 +134,7 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     std::vector<char*> lines;
 
     //read examples
-    while(0 < getline(&buffer, &buffer_size, fp))  {
+    while(0 < read_line(&buffer, &buffer_size, fp))  {
 
         // store example lines
         if(buffer[0] != '\n') {
@@ -175,7 +175,7 @@ double process(const char* filename, const char* filter, std::vector<double> &we
 
             ranker::Example* oracle = examples[0];
             for(unsigned i = 0; i < examples.size(); ++i) {
-                if(examples[i]->loss < oracle->loss) 
+                if(examples[i]->loss < oracle->loss)
                     oracle = examples[i];
             }
 
@@ -350,7 +350,7 @@ int main(int argc, char** argv) {
     if( trainset == NULL /* && !strcmp(mode, "train") */) {
         fprintf(stderr, "training mode and no trainset ? Aborting\n");
         abort();
-    } 
+    }
 
 
     int num_examples = compute_num_examples(trainset, filter);
@@ -382,7 +382,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        if(testset) 
+        if(testset)
             (void) process(testset, filter, weights, false, num_threads, mira);
     }
 

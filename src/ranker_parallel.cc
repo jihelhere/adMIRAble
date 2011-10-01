@@ -10,6 +10,9 @@
 #include <vector>
 #include <string>
 
+#include "utils.h"
+
+
 // warning: had to handle all memory allocations/deallocations within threads
 
 class input_thread: public ThreadedQueue<std::pair<std::string,Result<double>>> {
@@ -71,7 +74,7 @@ int main(int argc, char** argv) {
 
     std::vector<ResultVector<double>*> results;
     results.push_back(new ResultVector<double>());
-    while(0 <= (length = getline(&buffer, &buffer_length, stdin))) {
+    while(0 <= (length = read_line(&buffer, &buffer_length, stdin))) {
         if(length == 1) {
             results.back()->set_complete();
             output.enqueue(results.back());

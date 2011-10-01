@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <iostream>
 
+#include "utils.h"
+
+
 struct sort_func {
     bool operator()(const std::pair<std::string, int>& p1, const std::pair<std::string, int>& p2)
     {
@@ -17,17 +20,17 @@ struct sort_func {
 };
 
 
-int main(int, char**) 
+int main(int, char**)
 {
     std::unordered_map<std::string, int> global_counts;
     //  std::unordered_map<std::string, int> local_counts;
     //std::unordered_set<std::string> local_counts;
 
-    int num_sentence = 0;
+    //    int num_sentence = 0;
 
     size_t buffer_size = 0;
     char* buffer = NULL;
-    while(0 < getline(&buffer, &buffer_size, stdin)) {
+    while(0 < read_line(&buffer, &buffer_size, stdin)) {
         if(*buffer == '\n') {
 /*
             for (auto i(local_counts.begin()); i != local_counts.end(); ++i)  {
@@ -56,7 +59,7 @@ int main(int, char**)
     }
     free(buffer);
 
-    // for (std::unordered_map<std::string,int>::const_iterator i(global_counts.begin()); i != global_counts.end(); ++i) 
+    // for (std::unordered_map<std::string,int>::const_iterator i(global_counts.begin()); i != global_counts.end(); ++i)
     //   if(i->second)
     //     fprintf(stdout, "%s %d\n", i->first.c_str(), i->second);
 

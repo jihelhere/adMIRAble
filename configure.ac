@@ -8,6 +8,7 @@ AM_INIT_AUTOMAKE #([-Wall -Werror foreign])
 AC_CONFIG_HEADERS([config.h])
 AC_MSG_CHECKING(whether to enable debugging)
 debug_default="yes"
+
 AC_ARG_ENABLE(debug, [--enable-debug=[no/yes] turn on debugging
                      [default=$debug_default]],, enable_debug=$debug_default)
 
@@ -18,6 +19,26 @@ else
     CXXFLAGS="$CXXFLAGS -O6 -DNDEBUG -Wall -Wextra -pedantic -std=c++0x"
     AC_MSG_RESULT(no)
 fi
+
+boost_default="no"
+
+AC_ARG_ENABLE(boost, [--enable-boost=[no/yes] turn on debugging
+                     [default=$boost_default]],, enable_boost=$boost_default)
+
+if test "x$enable_debug" = "xyes"; then
+    AX_BOOST_BASE([1.41])
+    AX_BOOST_SYSTEM
+    AX_BOOST_THREAD
+    LDFLAGS="$LDFLAGS  $(BOOST_LDFLAGS) $(BOOST_THREAD_LIB)"
+    CXXFLAGS="$CXXFLAGS $(BOOST_CPPFLAGS) -DUSE_BOOST_THREAD"
+    AM_CONDITIONAL([WANT_BOOST_THREAD],[ true])
+    AC_MSG_RESULT(yes)
+else
+    CXXFLAGS="$CXXFLAGS"
+    AC_MSG_RESULT(no)
+fi
+
+
 
 # libtool
 #AC_PROG_LIBTOOL

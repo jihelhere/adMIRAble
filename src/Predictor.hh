@@ -5,6 +5,9 @@
 #include <unordered_map>
 #include "Example.hh"
 
+#include "utils.h"
+
+
 namespace ranker {
     struct Predictor {
         int num_threads;
@@ -33,7 +36,7 @@ namespace ranker {
             char* buffer = NULL;
             int length = 0;
 
-            while(0 < (length = getline(&buffer, &buffer_size, fp))) {
+            while(0 < (length = read_line(&buffer, &buffer_size, fp))) {
                 buffer[length - 1] = '\0'; // chop
                 char* weight1 = strchr(buffer, ' ');
                 *weight1 = '\0';
@@ -61,7 +64,7 @@ namespace ranker {
             int length = 0;
 
             int next_id = 1;
-            while(0 < (length = getline(&buffer, &buffer_size, fp))) {
+            while(0 < (length = read_line(&buffer, &buffer_size, fp))) {
                 buffer[length - 1] = '\0'; // chop
                 char* end = strchr(buffer, ' ');
                 *end = '\0';

@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     int i;
     for(i = 1; i < argc; i++) {
         FILE* input = open_pipe(argv[i], "r");
-        while(0 < getline(&buffer, &buffer_size, input)) {
+        while(0 < read_line(&buffer, &buffer_size, input)) {
             char* value = strchr(buffer, ' ');
             *value = '\0';
             string name = buffer;

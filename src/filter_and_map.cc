@@ -4,6 +4,9 @@
 #include <string>
 #include <unordered_map>
 
+#include "utils.h"
+
+
 using namespace std;
 
 typedef struct feature {
@@ -45,7 +48,7 @@ int main(int argc, char** argv) {
     char* buffer = NULL;
     int length = 0;
     int num = 1;
-    while(0 < (length = getline(&buffer, &buffer_size, fp))) {
+    while(0 < (length = read_line(&buffer, &buffer_size, fp))) {
         if(*buffer == '\n') continue;
         buffer[length - 1] = '\0'; // chop
         char* number = strchr(buffer, ' ');
@@ -62,7 +65,7 @@ int main(int argc, char** argv) {
     fclose(fp);
     feature_t features[100000];
     int num_features = 0;
-    while(0 < (length = getline(&buffer, &buffer_size, stdin))) {
+    while(0 < (length = read_line(&buffer, &buffer_size, stdin))) {
         buffer[length - 1] = '\0'; // chop
         char* token;
         int first = 1;

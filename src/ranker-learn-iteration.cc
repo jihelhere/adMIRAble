@@ -33,7 +33,7 @@ struct Example {
     Example(double lo, double sc, int la) : loss(lo), score(sc), label(la), features() {};
 
     // for sorting examples
-    struct example_ptr_desc_order 
+    struct example_ptr_desc_order
     {
         bool operator()(const Example* i, const Example* j) {return (i->score > j->score);}
     };
@@ -49,7 +49,7 @@ int compute_num_examples(char* filename) {
     while(previous != EOF) {
         char current = getc(fp);
         if(feof(fp)) break;
-        if(previous == '\n' && current == '\n') 
+        if(previous == '\n' && current == '\n')
             ++num;
         previous = current;
     }
@@ -64,14 +64,16 @@ struct mira_operator
     std::vector<double> &weights;
     std::vector<double> &avgWeights;
     Example* oracle;
+    double clip;
 
-    mira_operator(double& alpha_, double avgUpdate_, std::vector<double> &weights_, std::vector<double> &avgWeights_, Example* oracle_)
-        : alpha(alpha_), avgUpdate(avgUpdate_), weights(weights_), avgWeights(avgWeights_), oracle(oracle_) {};
+
+  mira_operator(double& alpha_, double avgUpdate_, std::vector<double> &weights_, std::vector<double> &avgWeights_, Example* oracle_, double clip_)
+    : alpha(alpha_), avgUpdate(avgUpdate_), weights(weights_), avgWeights(avgWeights_), oracle(oracle_), clip(clip_){};
 
     inline
-        bool incorrect_rank(const Example * example) 
+        bool incorrect_rank(const Example * example)
         {
-            return example->score > oracle->score || 
+            return example->score > oracle->score ||
                 (example->score == oracle->score && example->loss > oracle->loss);
         }
 
@@ -103,7 +105,7 @@ struct mira_operator
             delta /= norm;
             alpha += delta;
             if(alpha < 0) alpha = 0;
-            if(alpha > CLIP) alpha = CLIP;
+            if(alpha > clip) alpha = clip;
             double avgalpha = alpha * avgUpdate;
 
             end = difference.end();
@@ -119,7 +121,7 @@ struct mira_operator
 
 
 
-int process(char* filename, int num_iterations, vector<double> &weights, vector<double> &avgWeights, unordered_map<string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model) 
+int process(char* filename, int num_iterations, vector<double> &weights, vector<double> &avgWeights, unordered_map<string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model, double clip)
 {
     size_t buffer_size = 0;
     char* buffer = NULL;
@@ -141,7 +143,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
     Example* oracle = NULL;
     Example* official_oracle = NULL;
 
-    while(0 < getline(&buffer, &buffer_size,fp)) {
+    while(0 < read_line(&buffer, &buffer_size,fp)) {
 
         //if line is empty -> we've read all the examples
         if(buffer[0] == '\n') {
@@ -179,7 +181,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
 
 
                 // std::for_each(examples.begin(),examples.end(), mira_operator(alpha, avgUpdate, weights, avgWeights, oracle));
-                std::for_each(examples.begin(),examples.begin()+1, mira_operator(alpha, avgUpdate, weights, avgWeights, oracle));
+                std::for_each(examples.begin(),examples.begin()+1, mira_operator(alpha, avgUpdate, weights, avgWeights, oracle, clip));
             }
 
             ++num;
@@ -217,18 +219,18 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
                         official_oracle = example;
                     }
                     first = false;
-                } 
+                }
                 else {
                     char* value = strrchr(token, ':');
                     if(value != NULL) {
                         *value = '\0';
                         if(!strcmp(token, "las")) {
                             // skip las!!!
-                        } 
+                        }
                         if(!strcmp(token, "nbe")) {
                             example->loss = strtod(value + 1, NULL);
                             if(is_one_best) one_best_loss += example->loss;
-                        } 
+                        }
                         else {
                             token_as_string = token;
                             unordered_map<string, int>::iterator id = features.find(token_as_string);
@@ -260,7 +262,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
             }
 
             // see label = 1
-            if(oracle == NULL || example->loss < oracle->loss) 
+            if(oracle == NULL || example->loss < oracle->loss)
                 oracle = example;
 
             is_one_best = false;
@@ -412,7 +414,7 @@ int main(int argc, char** argv) {
         int next_id = 0;
         size_t buffer_size = 0;
         char* buffer = NULL;
-        while(0 < getline(&buffer, &buffer_size, fp)) {
+        while(0 < read_line(&buffer, &buffer_size, fp)) {
             buffer[strlen(buffer) - 1] = '\0'; // chop
             char* weight = strchr(buffer, ' ');
             *weight = '\0';
@@ -430,7 +432,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "examples: %d\n", num_examples);
     fprintf(stderr, "iteration %d\n", iteration);
     fprintf(stderr, "num iterations %d\n", num_iterations);
-    process(trainset, num_iterations, weights, avgWeights, features, next_id, iteration, num_examples, true);
+    process(trainset, num_iterations, weights, avgWeights, features, next_id, iteration, num_examples, true, clip);
 
     unordered_map<string, int>::iterator end = features.end();
     for( unordered_map<string, int>::iterator i = features.begin(); i != end; ++i) {

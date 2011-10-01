@@ -15,7 +15,7 @@ int always_keep(char * token)
 }
 
 
-int main() 
+int main()
 {
     std::unordered_map<std::string, int> hashtable(100000000);
     hashtable.max_load_factor(0.7f);
@@ -26,7 +26,7 @@ int main()
     char* buffer = NULL;
     long int skipped = 0, total = 0;
 
-    while(0 < getline(&buffer, &buffer_size, stdin))  {
+    while(0 < read_line(&buffer, &buffer_size, stdin))  {
 
         if(buffer[0] == '\n') {
 
@@ -50,7 +50,7 @@ int main()
                             if(hashtable.at(token) != (int) lines.size()) {
                                 fprintf(stdout," %s", token);
                             }
-                            else 
+                            else
                                 ++skipped;
                         }
                     }
