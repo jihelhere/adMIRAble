@@ -11,6 +11,8 @@
 #define MODE_READ 1
 #define MODE_WRITE 2
 
+#define INIT_BUFFER_SIZE 512
+
 typedef struct pipe_info {
     char* extension;
     int extension_length;
@@ -115,13 +117,21 @@ int close_pipe(FILE* fp) {
 
 int read_line(char** buffer, size_t* buffer_size, FILE* fp)
 {
-    if(NULL == fgets(*buffer, *buffer_size, fp)) return 0;
+  if(*buffer == NULL && *buffer_size == 0) {
+    *buffer_size = INIT_BUFFER_SIZE;
+    *buffer = (char*) malloc(INIT_BUFFER_SIZE*sizeof(char));
+  }
+
+  if(NULL == fgets(*buffer, *buffer_size, fp)) {
+    return -1;
+  }
     while((*buffer)[strlen(*buffer) - 1] != '\n') {
         *buffer_size *= 2;
         *buffer = (char*) realloc(*buffer, *buffer_size);
-        if(fgets(*buffer + strlen(*buffer), *buffer_size - strlen(*buffer), fp) == NULL) return 0;
+        if(fgets(*buffer + strlen(*buffer), *buffer_size - strlen(*buffer), fp) == NULL) return -1;
     }
-    return 1;
+
+    return strlen(*buffer);
 }
 
 
