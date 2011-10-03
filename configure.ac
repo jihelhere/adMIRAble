@@ -20,24 +20,36 @@ else
     AC_MSG_RESULT(no)
 fi
 
+AC_MSG_CHECKING(whether to enable boost)
+
 boost_default="no"
 
-AC_ARG_ENABLE(boost, [--enable-boost=[no/yes] turn on debugging
-                     [default=$boost_default]],, enable_boost=$boost_default)
+AX_BOOST_BASE([1.41])
+AX_BOOST_SYSTEM
+AX_BOOST_THREAD
 
-if test "x$enable_boost" = "xyes"; then
-    AX_BOOST_BASE([1.41])
-    AX_BOOST_SYSTEM
-    AX_BOOST_THREAD
-    LDFLAGS="$LDFLAGS  $BOOST_LDFLAGS $BOOST_THREAD_LIB"
-    CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS -DUSE_BOOST_THREAD"
-    AM_CONDITIONAL([WANT_BOOST_THREAD],[ true])
-    AC_MSG_RESULT(yes)
-else
+
+AC_ARG_WITH(boost, [message],
+                   [
+                   if test "$withval" = "no"; then
+                     want_boost="no"
+                   elif test "$withval" = "yes"; then
+                     want_boost="yes"
+                   else
+                     want_boost="yes"
+                   fi
+                   ], [ want_boost="no" ])
+
+AM_CONDITIONAL([WANT_BOOST_THREAD], [test "x$want_boost" != "xno"])
+
+if test "x$want_boost" = "xno"; then
     CXXFLAGS="$CXXFLAGS"
     AC_MSG_RESULT(no)
+else
+    LDFLAGS="$LDFLAGS  $BOOST_LDFLAGS $BOOST_THREAD_LIB"
+    CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS -DUSE_BOOST_THREAD"
+    AC_MSG_RESULT(yes)
 fi
-
 
 
 # libtool
