@@ -25,9 +25,6 @@ AC_MSG_CHECKING(whether to enable boost)
 boost_default="no"
 
 AX_BOOST_BASE([1.41])
-AX_BOOST_SYSTEM
-AX_BOOST_THREAD
-
 
 AC_ARG_WITH(boost, [message],
                    [
@@ -46,6 +43,8 @@ if test "x$want_boost" = "xno"; then
     CXXFLAGS="$CXXFLAGS"
     AC_MSG_RESULT(no)
 else
+    AX_BOOST_SYSTEM
+    AX_BOOST_THREAD
     LDFLAGS="$LDFLAGS  $BOOST_LDFLAGS $BOOST_THREAD_LIB"
     CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS -DUSE_BOOST_THREAD"
     AC_MSG_RESULT(yes)

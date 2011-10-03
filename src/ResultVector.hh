@@ -37,12 +37,12 @@ class ResultVector {
     ResultVector(): num_set(0), complete(false) {
     }
     int add_result() {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
         results.push_back(T());
         return results.size() - 1;
     }
     void set_result(int id, T& value) {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
         assert(!(complete && num_set == results.size()));
         results[id] = value;
         num_set++;
@@ -51,24 +51,24 @@ class ResultVector {
         }
     }
     void set_complete() {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
         complete = true;
         if(num_set == results.size()) {
             is_ready.notify_one();
         }
     }
     void wait() {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
         while(!complete && num_set != results.size()) {
             is_ready.wait(l);
         }
     }
     T& get_result(int id) {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
         return results[id];
     }
     size_t size() {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
         return results.size();
     }
 };

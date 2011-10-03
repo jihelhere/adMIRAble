@@ -250,7 +250,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
                             }
 
                             double value_as_double = strtod(value + 1, NULL);
-                            if(!std::isinf(value_as_double) && !std::isnan(value_as_double)) {
+                            if(!isinf(value_as_double) && !isnan(value_as_double)) {
                                 example->features[location] = value_as_double;
                                 //fprintf(stdout, "%s %d %g\n", token, location, value_as_double);
                                 //if(iteration == 1) fprintf(stdout, "%s %g %g %g\n", token, vector_last(values), weights[location], weights[location + 1]);

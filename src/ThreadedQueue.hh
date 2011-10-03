@@ -76,7 +76,7 @@ class ThreadedQueue {
     void run() {
         running = true;
         while(true) {
-            threadns::unique_lock<boost::mutex> l(guard);
+            threadns::unique_lock<threadns::mutex> l(guard);
 
             while(size == 0) {
                 if(finished) {
@@ -99,7 +99,7 @@ class ThreadedQueue {
 
     // call enqueue with pairs of input and std::promise to be able to retrieve results
     void enqueue(T item) {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
 
         assert(!finished);
         while(size == max_size) {
@@ -120,7 +120,7 @@ class ThreadedQueue {
 
     // finishes processing the queue
     void drain() {
-        threadns::unique_lock<boost::mutex> l(guard);
+        threadns::unique_lock<threadns::mutex> l(guard);
 
         if(!finished) {
             finished = true;
