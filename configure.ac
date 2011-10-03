@@ -25,12 +25,12 @@ boost_default="no"
 AC_ARG_ENABLE(boost, [--enable-boost=[no/yes] turn on debugging
                      [default=$boost_default]],, enable_boost=$boost_default)
 
-if test "x$enable_debug" = "xyes"; then
+if test "x$enable_boost" = "xyes"; then
     AX_BOOST_BASE([1.41])
     AX_BOOST_SYSTEM
     AX_BOOST_THREAD
-    LDFLAGS="$LDFLAGS  $(BOOST_LDFLAGS) $(BOOST_THREAD_LIB)"
-    CXXFLAGS="$CXXFLAGS $(BOOST_CPPFLAGS) -DUSE_BOOST_THREAD"
+    LDFLAGS="$LDFLAGS  $BOOST_LDFLAGS $BOOST_THREAD_LIB"
+    CXXFLAGS="$CXXFLAGS $BOOST_CPPFLAGS -DUSE_BOOST_THREAD"
     AM_CONDITIONAL([WANT_BOOST_THREAD],[ true])
     AC_MSG_RESULT(yes)
 else
