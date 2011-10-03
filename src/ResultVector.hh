@@ -3,9 +3,11 @@
 #ifdef USE_BOOST_THREAD
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
+namespace threadns = boost;
 #else
 #include <mutex>
 #include <condition_variable>
+namespace threadns = std;
 #endif
 
 template <class T>
@@ -25,13 +27,9 @@ class Result {
 
 template <class T>
 class ResultVector {
-#ifdef USE_BOOST_THREAD
-    boost::mutex guard;
-    boost::condition_variable is_ready;
-#else
-    std::mutex guard;
-    std::condition_variable is_ready;
-#endif
+    threadns::mutex guard;
+    threadns::condition_variable is_ready;
+
     std::vector<T> results;
     size_t num_set;
     bool complete;
@@ -39,20 +37,12 @@ class ResultVector {
     ResultVector(): num_set(0), complete(false) {
     }
     int add_result() {
-#ifdef USE_BOOST_THREAD
-        boost::unique_lock<boost::mutex> l(guard);
-#else
-        std::unique_lock<std::mutex> l(guard);˙
-#endif
+        threadns::unique_lock<boost::mutex> l(guard);
         results.push_back(T());
         return results.size() - 1;
     }
     void set_result(int id, T& value) {
-#ifdef USE_BOOST_THREAD
-        boost::unique_lock<boost::mutex> l(guard);
-#else
-        std::unique_lock<std::mutex> l(guard);˙
-#endif
+        threadns::unique_lock<boost::mutex> l(guard);
         assert(!(complete && num_set == results.size()));
         results[id] = value;
         num_set++;
@@ -61,40 +51,24 @@ class ResultVector {
         }
     }
     void set_complete() {
-#ifdef USE_BOOST_THREAD
-        boost::unique_lock<boost::mutex> l(guard);
-#else
-        std::unique_lock<std::mutex> l(guard);˙
-#endif
+        threadns::unique_lock<boost::mutex> l(guard);
         complete = true;
         if(num_set == results.size()) {
             is_ready.notify_one();
         }
     }
     void wait() {
-#ifdef USE_BOOST_THREAD
-        boost::unique_lock<boost::mutex> l(guard);
-#else
-        std::unique_lock<std::mutex> l(guard);˙
-#endif
+        threadns::unique_lock<boost::mutex> l(guard);
         while(!complete && num_set != results.size()) {
             is_ready.wait(l);
         }
     }
     T& get_result(int id) {
-#ifdef USE_BOOST_THREAD
-        boost::unique_lock<boost::mutex> l(guard);
-#else
-        std::unique_lock<std::mutex> l(guard);˙
-#endif
+        threadns::unique_lock<boost::mutex> l(guard);
         return results[id];
     }
     size_t size() {
-#ifdef USE_BOOST_THREAD
-        boost::unique_lock<boost::mutex> l(guard);
-#else
-        std::unique_lock<std::mutex> l(guard);˙
-#endif
+        threadns::unique_lock<boost::mutex> l(guard);
         return results.size();
     }
 };

@@ -6,8 +6,10 @@
 
 #ifdef USE_BOOST_THREAD
 #include <boost/thread.hpp>
+namespace threadns = boost;
 #else
 #include <thread>
+namespace threadns = std;
 #endif
 
 #include "Example.hh"
@@ -16,11 +18,8 @@ namespace ranker {
     struct ExampleMaker
     {
 
-#ifdef USE_BOOST_THREAD
-      boost::thread my_thread;
-#else
-      std::thread my_thread;
-#endif
+      threadns::thread my_thread;
+
         std::vector<char*>& lines;
         std::vector<double>& weights;
         std::vector<Example*> examples;
@@ -53,11 +52,9 @@ namespace ranker {
         {
             this->from = from;
             this->to = to > (int) lines.size() ? lines.size() : to;
-#ifdef USE_BOOST_THREAD
-            my_thread = boost::thread(&ExampleMaker::create_example, this);
-#else
-            my_thread = std::thread(&ExampleMaker::create_example, this);
-#endif
+
+            my_thread = threadns::thread(&ExampleMaker::create_example, this);
+
             //create_example();
         }
 
