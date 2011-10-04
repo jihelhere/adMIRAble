@@ -14,14 +14,15 @@ Multiclass Problems. In: Journal of Machine Learning Research 3, 951-991.
 Dependencies
 ------------
 
-1. a c++0x-aware compiler, for example gcc > 4.0
+1. a c++0x-aware compiler, for example gcc > 4.4
 2. autotools
+3. if your OS doesn't provide a c++0x thread implementation, you need the boost library (only tested with boost 1.47)
 
 Compiling
 ---------
 
     ./bootstrap
-    ./configure --enable-debug=false
+    ./configure --enable-debug=false [--with-boost=(yes|path_to_boost)]
     make
     make install
 
@@ -72,7 +73,7 @@ example:
 
     1 1:-12 2:1.4
     0.01 3:1.7
-    
+
 
 Remark
 ------

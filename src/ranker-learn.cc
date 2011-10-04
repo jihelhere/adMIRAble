@@ -145,12 +145,11 @@ double process(const char* filename, const char* filter, std::vector<double> &we
         // empty line -> end of examples for this instance
         else if(lines.size() > 0) {
           //            std::vector<ranker::ExampleMaker*> exampleMakers(num_threads, NULL);
-          std::vector<ranker::ExampleMaker*> exampleMakers;
-          exampleMakers.reserve(num_threads);
+          std::vector<ranker::ExampleMaker*> exampleMakers(num_threads, NULL);
 
             for(int i = 0; i < num_threads; ++i) {
-              exampleMakers.push_back(new ranker::ExampleMaker(lines, weights));
-                exampleMakers[i]->start(i*lines.size()/num_threads, (i+1)*lines.size()/num_threads);
+              exampleMakers[i] = new ranker::ExampleMaker(lines, weights);
+              exampleMakers[i]->start(i*lines.size()/num_threads, (i+1)*lines.size()/num_threads);
             }
 
 

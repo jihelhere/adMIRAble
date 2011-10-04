@@ -18,16 +18,13 @@
 #define CLIP 0.2
 #define LOOP 10
 
-//TODO: remove
-using namespace std;
-
 static int verbose_flag = 0;
 
 struct Example {
     double loss;
     double score;
     int label;
-    unordered_map<int, double> features;
+    std::unordered_map<int, double> features;
 
     Example() : loss(0.0), score(0.0), label(0), features() {};
     Example(double lo, double sc, int la) : loss(lo), score(sc), label(la), features() {};
@@ -91,12 +88,12 @@ struct mira_operator
             double delta = example->loss - oracle->loss - (oracle->score - example->score);
 
             //copy
-            unordered_map<int, double> difference = oracle->features;
+            std::unordered_map<int, double> difference = oracle->features;
             double norm = 0;
 
-            unordered_map<int, double>::iterator end = example->features.end();
+            std::unordered_map<int, double>::iterator end = example->features.end();
 
-            for(unordered_map<int, double>::iterator j = example->features.begin(); j != end; ++j) {
+            for(std::unordered_map<int, double>::iterator j = example->features.begin(); j != end; ++j) {
                 double&ref = difference[j->first];
                 ref -= j->second;
                 norm += ref*ref;
@@ -109,7 +106,7 @@ struct mira_operator
             double avgalpha = alpha * avgUpdate;
 
             end = difference.end();
-            for(unordered_map<int, double>::iterator j = difference.begin(); j != end; ++j) {
+            for(std::unordered_map<int, double>::iterator j = difference.begin(); j != end; ++j) {
                 weights[j->first] += alpha * j->second;
                 avgWeights[j->first] += avgalpha * j->second;
             }
@@ -121,7 +118,7 @@ struct mira_operator
 
 
 
-int process(char* filename, int num_iterations, vector<double> &weights, vector<double> &avgWeights, unordered_map<string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model, double clip)
+int process(char* filename, int num_iterations, std::vector<double> &weights, std::vector<double> &avgWeights, std::unordered_map<std::string, int> &features, int &next_id, int iteration, int num_examples, bool alter_model, double clip)
 {
     size_t buffer_size = 0;
     char* buffer = NULL;
@@ -139,7 +136,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
     double one_best_loss = 0;
     bool is_one_best = true;
 
-    vector<Example*> examples;
+    std::vector<Example*> examples;
     Example* oracle = NULL;
     Example* official_oracle = NULL;
 
@@ -209,7 +206,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
             examples.push_back(example);
 
 
-            string token_as_string;
+            std::string token_as_string;
 
             // read a line and fill label/features
             for(token = strtok(buffer, " \t"); token != NULL; token = strtok(NULL, " \t\n")) {
@@ -233,7 +230,7 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
                         }
                         else {
                             token_as_string = token;
-                            unordered_map<string, int>::iterator id = features.find(token_as_string);
+                            std::unordered_map<std::string, int>::iterator id = features.find(token_as_string);
                             unsigned int location = 0;
                             if(id == features.end()) {
                                 if(!alter_model) continue; // skip unseen features
@@ -250,10 +247,10 @@ int process(char* filename, int num_iterations, vector<double> &weights, vector<
                             }
 
                             double value_as_double = strtod(value + 1, NULL);
-                            if(!isinf(value_as_double) && !isnan(value_as_double)) {
+                            if(!std::isinf(value_as_double) && !std::isnan(value_as_double)) {
                                 example->features[location] = value_as_double;
                                 //fprintf(stdout, "%s %d %g\n", token, location, value_as_double);
-                                //if(iteration == 1) fprintf(stdout, "%s %g %g %g\n", token, vector_last(values), weights[location], weights[location + 1]);
+                                //if(iteration == 1) fprintf(stdout, "%s %g %g %g\n", token, std::vector_last(values), weights[location], weights[location + 1]);
                                 example->score += value_as_double * weights[location];
                             }
                         }
@@ -396,9 +393,9 @@ int main(int argc, char** argv) {
     }
 
 
-    vector<double> weights;
-    vector<double> avgWeights;
-    unordered_map<string, int> features;
+    std::vector<double> weights;
+    std::vector<double> avgWeights;
+    std::unordered_map<std::string, int> features;
     int next_id = 0;
 
     if(num_examples == -1)
@@ -419,7 +416,7 @@ int main(int argc, char** argv) {
             char* weight = strchr(buffer, ' ');
             *weight = '\0';
             double value = strtod(weight + 1, NULL);
-            features[string(buffer)] = next_id;
+            features[std::string(buffer)] = next_id;
             weights.push_back(value);
             avgWeights.push_back(value * (num_examples * num_iterations));
             next_id++;
@@ -434,8 +431,8 @@ int main(int argc, char** argv) {
     fprintf(stderr, "num iterations %d\n", num_iterations);
     process(trainset, num_iterations, weights, avgWeights, features, next_id, iteration, num_examples, true, clip);
 
-    unordered_map<string, int>::iterator end = features.end();
-    for( unordered_map<string, int>::iterator i = features.begin(); i != end; ++i) {
+    std::unordered_map<std::string, int>::iterator end = features.end();
+    for( std::unordered_map<std::string, int>::iterator i = features.begin(); i != end; ++i) {
         if(weights[i->second] != 0) {
             fprintf(stdout, "%s %32.31g\n", i->first.c_str(), weights[i->second]);
         }
