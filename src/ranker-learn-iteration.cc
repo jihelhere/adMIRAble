@@ -12,6 +12,9 @@
 
 #include <cassert>
 
+
+#include <cmath>
+
 #include <getopt.h>
 #include "utils.h"
 
