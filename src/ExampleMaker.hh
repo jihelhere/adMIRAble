@@ -15,50 +15,63 @@ namespace threadns = std;
 #include "Example.hh"
 
 namespace ranker {
-    struct ExampleMaker
+  struct ExampleMaker
+  {
+
+    threadns::thread my_thread;
+
+    std::vector<char*>& lines;
+    std::vector<double>& weights;
+    std::vector<Example*>& examples;
+
+    ExampleMaker(std::vector<char*> &l, std::vector<double>& w, std::vector<Example*>& e) 
+      : my_thread(), lines(l), weights(w), examples(e) {};
+
+    ~ExampleMaker() {}
+
+    void join() {
+      my_thread.join();
+    }
+
+    void create_examples(std::mutex* mlines, int* processed_lines, int* finished, std::condition_variable* cond_process)
     {
+      while(1) {
+	int index;
+	char * string = NULL;
 
-      threadns::thread my_thread;
+	std::unique_lock<std::mutex> lock(*mlines);
+	
+	while(((unsigned) *processed_lines >= lines.size()) && !*finished) {
+	  cond_process->wait(lock);
+	}
+	
+	if(*finished && ((unsigned) *processed_lines == lines.size())) break;
 
-        std::vector<char*>& lines;
-        std::vector<double>& weights;
-        std::vector<Example*> examples;
+	index = (*processed_lines)++;
+	examples.resize(lines.size(),NULL);
+	string = lines[index];
+   
+	lock.unlock();
+	  
+	Example * e = new Example(string);
+	e-> compute_score(weights);
+	    
+	lock.lock();
+	examples[index] = e;
+	delete lines[index];
+	lock.unlock();
+      
+      }
+    }
 
-        int from;
-        int to;
-
-      ExampleMaker(std::vector<char*> &l, std::vector<double>& w) : my_thread(), lines(l), weights(w), examples() {};
-
-        ~ExampleMaker() {
-            for(auto example = examples.begin(); example != examples.end(); example++) {
-                delete *example;
-            }
-        }
-
-        void join() {
-            my_thread.join();
-        }
+    void start(std::mutex* mlines, int* processed_lines, int* finished, std::condition_variable* cond_process)
+    {
+      my_thread = threadns::thread(&ExampleMaker::create_examples, this,
+				   mlines, processed_lines, finished, cond_process);
+    }
 
 
-        void create_example()
-        {
-            for(int i = from; i < to; i++) {
-                examples.push_back(new Example(lines[i]));
-                examples.back()->compute_score(weights);
-            }
-        }
-
-        void start(int from, int to)
-        {
-            this->from = from;
-            this->to = to > (int) lines.size() ? lines.size() : to;
-
-            my_thread = threadns::thread(&ExampleMaker::create_example, this);
-
-            //create_example();
-        }
-
-    };
+  };
 }
 
 

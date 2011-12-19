@@ -125,13 +125,16 @@ int read_line(char** buffer, size_t* buffer_size, FILE* fp)
   if(NULL == fgets(*buffer, *buffer_size, fp)) {
     return -1;
   }
-    while((*buffer)[strlen(*buffer) - 1] != '\n') {
-        *buffer_size *= 2;
-        *buffer = (char*) realloc(*buffer, *buffer_size);
-        if(fgets(*buffer + strlen(*buffer), *buffer_size - strlen(*buffer), fp) == NULL) return -1;
-    }
 
-    return strlen(*buffer);
+  size_t l = strlen(*buffer);
+  while((*buffer)[l - 1] != '\n') {
+    *buffer_size *= 2;
+    *buffer = (char*) realloc(*buffer, *buffer_size);
+    if(fgets(*buffer + l, *buffer_size - l, fp) == NULL) return -1;
+    l = strlen(*buffer);
+  }
+
+  return l;
 }
 
 

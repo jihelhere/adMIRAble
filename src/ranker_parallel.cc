@@ -20,7 +20,10 @@ class input_thread: public ThreadedQueue<std::pair<std::string,Result<double>>> 
 
     public:
     void process(std::pair<std::string,Result<double>>& input) {
-        ranker::Example x(input.first.c_str());
+      char *copy = strdup(input.first.c_str());
+
+        ranker::Example x(copy);
+	free(copy);
         double score = model.compute_score(x);
         input.second.set_result(score);
     }

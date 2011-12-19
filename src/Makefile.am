@@ -1,4 +1,5 @@
-#AM_CXXFLAGS=
+#AM_CPPFLAGS= -DNDEBUG
+#AM_CXXFLAGS= -O6 
 
 bin_PROGRAMS = ranker-learn ranker-predict count count_by_instance drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
 

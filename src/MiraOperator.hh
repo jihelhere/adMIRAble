@@ -38,86 +38,111 @@ namespace ranker {
 
         }
 
-        inline
-            bool incorrect_rank(const Example * example) 
-            {
-                return example->score > oracle->score || (example->score == oracle->score && example->loss > oracle->loss);
-            }
+      inline
+      bool incorrect_rank(const Example * example) 
+      {
+	return example->score > oracle->score || (example->score == oracle->score && example->loss > oracle->loss);
+      }
 
 
-        void operator()(Example * example)
-        {
-            //fprintf(stdout, "%g %g\n", example->score, example->loss);
+      void operator()(Example * example)
+      {
+	//            fprintf(stderr, "example: %g score: %g\n", example->score, example->loss);
 
-            // skip the oracle -> useless update
-            if(example == oracle) return;
-            //fprintf(stderr, "mira: %g %g %g %g\n", oracle->score, oracle->loss, example->score, example->loss);
-
-
-            sort(example->features.begin(), example->features.end());
-            if(incorrect_rank(example)) {
-                double alpha = 0.0;
-                double delta = example->loss - oracle->loss - (oracle->score - example->score);
-
-                //copy
-                auto i = oracle->features.begin(), j = example->features.begin();
-                double norm = 0;
-
-                while(i != oracle->features.end() && j != example->features.end()) {
-                    if(i->id < j->id) {
-                        norm += i->value * i->value;
-                        ++i;
-                    } else if(j->id < i->id) {
-                        norm += j->value * j->value;
-                        ++j;
-                    } else {
-                        double difference = i->value - j->value;
-                        norm += difference * difference;
-                        ++i;
-                        ++j;
-                    }
-                }
-                while(i != oracle->features.end())  { norm += i->value * i->value; ++i; }
-                while(j != example->features.end()) { norm += j->value * j->value; ++j; }
-
-                delta /= norm;
-                alpha += delta;
-                if(alpha < 0) alpha = 0;
-                if(alpha > clip) alpha = clip;
+	// skip the oracle -> useless update
+	if(example == oracle) return;
+	//fprintf(stderr, "mira: os: %g ol: %g es: %g el: %g\n", oracle->score, oracle->loss, example->score, example->loss);
 
 
-                //      double avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num + 1)) + 1));
+	//sort(example->features.begin(), example->features.end());
+	if(incorrect_rank(example)) {
+	  
+	  //copy
+	  auto i = oracle->features.begin(), j = example->features.begin();
+	  double norm = 0;
 
-                double avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num )) + 1));
+	  while(i != oracle->features.end() && j != example->features.end()) {
+	    if(i->id < j->id) {
+	      norm += i->value * i->value;
+	      ++i;
+	    } else if(j->id < i->id) {
+	      norm += j->value * j->value;
+	      ++j;
+	    } else {
+	      double difference = i->value - j->value;
+	      norm += difference * difference;
+	      ++i;
+	      ++j;
+	    }
+	  }
+	  while(i != oracle->features.end())  { norm += i->value * i->value; ++i; }
+	  while(j != example->features.end()) { norm += j->value * j->value; ++j; }
 
-                double avgalpha = alpha * avgUpdate;
-                //fprintf(stderr, "norm: %g alpha: %g\n", norm, alpha);
 
-                //update weight vectors
-                i = oracle->features.begin();
-                while(i != oracle->features.end()) {
-                    if(weights.size() <= i->id) {
-                        weights.resize(i->id + 1, 0);
-                        avgWeights.resize(i->id + 1, 0);
-                    }
-                    weights[i->id] += alpha * i->value;
-                    avgWeights[i->id] += avgalpha * i->value;
-                    ++i;
-                }
-                j = example->features.begin();
-                while(j != example->features.end()) {
-                    if(weights.size() <= j->id) {
-                        weights.resize(j->id + 1, 0);
-                        avgWeights.resize(j->id + 1, 0);
-                    }
-                    weights[j->id] -= alpha * j->value;
-                    avgWeights[j->id] -= avgalpha * j->value;
-                    ++j;
-                }
-            }
-        }
+	  double alpha = 0.0;
+	  double delta = example->loss - oracle->loss - (oracle->score - example->score);
+	  
+	  delta /= norm;
+	  alpha += delta;
+	  
+	  if(alpha < 0) alpha = 0;
+	  if(alpha > clip) alpha = clip;
+	  
+
+	  double avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num )) + 1));
+
+	  double avgalpha = alpha * avgUpdate;
+	  //                fprintf(stderr, "norm: %g alpha: %g\n", norm, alpha);
+
+	  //update weight vectors
+	  
+	  unsigned s = oracle->features.back().id > example->features.back().id ?
+	    oracle->features.back().id : example->features.back().id ;
+	  
+
+	  //		fprintf(stderr, "before resizing to %d\n", s);	
+	  if(weights.size() <= s) {
+	    weights.resize(s+1, 0);
+	    avgWeights.resize(s+1, 0);
+	  }
+	  //		fprintf(stderr, "after resizing\n");	
+	  
+	  i = oracle->features.begin();
+	  j = example->features.begin();
+
+	  while(i != oracle->features.end() && j != example->features.end()) {
+	    if(i->id < j->id) {
+	      weights[i->id] += alpha * i->value;
+	      avgWeights[i->id] += avgalpha * i->value;
+	      ++i;
+	    } else if(j->id < i->id) {
+	      weights[j->id] -= alpha * j->value;
+	      avgWeights[j->id] -= avgalpha * j->value;
+	      ++j;
+	      
+	    } else {
+	      assert(i->id == j->id);
+	      double difference = i->value - j->value;
+	      weights[j->id] += alpha * difference;
+	      avgWeights[j->id] += avgalpha * difference;
+	      ++i;
+	      ++j;
+	    }
+	  }
+	  while(i != oracle->features.end())  { 
+	    weights[i->id] += alpha * i->value;
+	    avgWeights[i->id] += avgalpha * i->value;
+	    ++i;
+	  }
+	  while(j != example->features.end()) { 
+	    weights[j->id] -= alpha * j->value;
+	    avgWeights[j->id] -= avgalpha * j->value;
+	    ++j;
+	  }
+	}
+      }
     };
-
+ 
 }
 
 #endif

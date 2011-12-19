@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <string>
+#include <cassert>
 
 namespace ranker {
 
@@ -22,38 +23,51 @@ struct Example {
   double score;
   std::vector<Feature> features;
   
-  Example() : loss(0.0), score(0.0), features() { }
+  Example() : loss(0.0), score(0.0), features() {
+    features.reserve(5000000); 
+  }
 
 
-  Example(const char* input) : loss(0.0), score(0.0), features() {
-      load(input);
+  Example(char* input) : loss(0.0), score(0.0), features() {
+    features.reserve(5000000);
+    load(input);
   }
 
   // load an example from a line 'loss feature_id:value .... feature_id:value' # comment
   // no error checking
-  void load(const char* line) {
-      features.clear();
-      char *input = strdup(line);
+  void load(char* line) {
+    assert(line);
+    //fprintf(stderr, "%s\n", line);
+
+    //      features.clear();
+      //      char *input = strdup(line);
+      //      char * save = input;
+      char * input = line;
       char *token = NULL; 
-      char *comment = strchr(input, '#');
-      if(comment != NULL) *comment = '\0'; // skip comments
+      // char *comment = strchr(input, '#');
+      // if(comment != NULL) *comment = '\0'; // skip comments
       token =  strsep(&input, " \t"); // read loss
       loss = strtod(token, NULL);
-      for(;(token = strsep(&input, " \t\n"));) {
-          if(!strcmp(token,"")) continue;
+      for(;(token = strsep(&input, " \t\n")) && *token != '\0' ;) {
+	//          if(!strcmp(token,"")) continue;
           char* value = strrchr(token, ':');
-          if(value != NULL) { // read feature_id:value
+	  //          if(value != NULL) { // read feature_id:value
               *value = '\0';
               double value_as_double = strtod(value + 1, NULL);
-              int feature_id = strtol(token, NULL, 10);
-              features.push_back(ranker::Feature(feature_id, value_as_double));
-          }
+	      //              int feature_id = strtol(token, NULL, 10);
+              int feature_id = atoi(token);
+	      features.emplace_back(ranker::Feature(feature_id, value_as_double));
+	      //	      features.emplace_back(feature_id, value_as_double);
+	      //          }
       }
-      free(input);
+      //      free(save);
   }
 
-  double compute_score(std::vector<double> weights) {
+  double compute_score(const std::vector<double>& weights) {
       score = 0;
+
+      //      fprintf(stderr, "weights.size is: %ld\n", weights.size());
+
       for(auto i = features.begin(); i != features.end(); ++i) {
           if(i->id < weights.size()) score += i->value * weights[i->id];
       }
@@ -63,7 +77,8 @@ struct Example {
   // for sorting examples
   struct example_ptr_desc_score_order 
   {
-      bool operator()(const Example* i, const Example* j) {return (i->score > j->score);}
+    inline bool operator()(const Example* __restrict__ i, const Example* __restrict__ j) const 
+    {return (i->score > j->score);}
   };
 
 };

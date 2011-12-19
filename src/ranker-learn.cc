@@ -27,20 +27,27 @@
 
 static int verbose_flag = 0;
 
+
+int processed_lines = 0;
+int finished = 0;
+std::mutex mutex_processed_lines;
+std::condition_variable cond_process;
+
+
 void  print_help_message(char *program_name)
 {
     fprintf(stderr, "%s usage: %s [options]\n", program_name, program_name);
     fprintf(stderr, "OPTIONS :\n");
-    fprintf(stderr, "      --train,-s   <file>           : training set file\n");
-    fprintf(stderr, "      --dev,-d     <file>           : dev set file\n");
-    fprintf(stderr, "      --test,-t    <file>           : test set file\n");
-    fprintf(stderr, "      --clip,-c    <double>         : clip value (default is %f)\n", CLIP);
-    fprintf(stderr, "      --iter,-i    <int>            : nb of iterations (default is %d)\n", LOOP);
-    fprintf(stderr, "      --threads,-j <int>            : nb of threads (default is %d)\n", NUM_THREADS);
-    fprintf(stderr, "      --filter,-f  <command>        : filter input through command (\"%%s\" is replaced by the filename)\n");
-    //fprintf(stderr, "      --mode,-m    <train|predict>  : running mode\n");
-
-    fprintf(stderr, "      -help,-h                    : print this message\n");
+    fprintf(stderr, "      --train,-s    <file>           : training set file\n");
+    fprintf(stderr, "      --dev,-d      <file>           : dev set file\n");
+    fprintf(stderr, "      --test,-t     <file>           : test set file\n");
+    fprintf(stderr, "      --clip,-c     <double>         : clip value (default is %f)\n", CLIP);
+    fprintf(stderr, "      --iter,-i     <int>            : nb of iterations (default is %d)\n", LOOP);
+    fprintf(stderr, "      --threads,-j  <int>            : nb of threads (default is %d)\n", NUM_THREADS);
+    fprintf(stderr, "      --filter,-f   <command>        : filter input through command (\"%%s\" is replaced by the filename)\n");
+    fprintf(stderr, "      --examples,-e <int>            : set number of examples (if known in advance)\n");
+    
+    fprintf(stderr, "      -help,-h                       : print this message\n");
 }
 
 /* Open a file through an optional filter. If filter contains %s, filename is
@@ -66,7 +73,7 @@ FILE* openpipe(const char* filename, const char* filter) {
         dup2(fd[1], STDOUT_FILENO);
         char* command = NULL;
         if(NULL != strstr(filter, "%s")) {
-            asprintf(&command, filter, filename);
+	  asprintf(&command, filter, filename);
         } else {
             int input = open(filename, O_RDONLY);
             if(input < 0) {
@@ -115,123 +122,133 @@ int compute_num_examples(const char* filename, const char* filter)
 }
 
 
+
+struct file_reader
+{
+  char * buffer;
+  size_t buffer_size;
+
+  file_reader() : buffer(NULL), buffer_size(0) {}
+
+  ~file_reader() {free(buffer);}
+  
+  void
+  process_file(FILE** fp, std::vector<char*>* lines)
+  { 
+    while(0 < read_line(&buffer, &buffer_size, *fp))  {
+      if(buffer[0] != '\n') {
+	
+	mutex_processed_lines.lock();
+	lines->push_back(strdup(buffer));
+	cond_process.notify_all();
+	//	fprintf(stderr, "after notify\n");
+	mutex_processed_lines.unlock();
+      }
+      else break;
+      
+    }
+    finished = 1;
+    cond_process.notify_all();
+  }
+};
+
 double process(const char* filename, const char* filter, std::vector<double> &weights, bool alter_model, int num_threads, ranker::MiraOperator& mira)
 {
-    int num = 0;
-    int errors = 0;
-    double avg_loss = 0;
-    double one_best_loss = 0;
+  int num = 0;
+  int errors = 0;
+  double avg_loss = 0;
+  double one_best_loss = 0;
 
-    FILE* fp = openpipe(filename, filter);
-    if(!fp) {
-        fprintf(stderr, "ERROR: cannot open \"%s\"\n", filename);
-        return 1;
+  FILE* fp = openpipe(filename, filter);
+  if(!fp) {
+    fprintf(stderr, "ERROR: cannot open \"%s\"\n", filename);
+    return -1;
+  }
+
+  std::vector<char*> lines;
+  std::vector<ranker::Example*> examples; 
+  std::vector<ranker::ExampleMaker*> exampleMakers(num_threads, NULL);
+
+  for(int i = 0; i < num_threads; ++i) {
+    exampleMakers[i] = new ranker::ExampleMaker(lines, weights, examples);
+  }
+
+  file_reader fr;
+
+  while(!feof(fp)) {
+
+    processed_lines = 0;
+    finished = 0;
+
+    threadns::thread thread_read(&file_reader::process_file, &fr, &fp, &lines);
+
+    for(int i = 0; i < num_threads; ++i) {
+      exampleMakers[i]->start(&mutex_processed_lines, &processed_lines, &finished, &cond_process);
     }
 
-    size_t buffer_size = 0;
-    char* buffer = NULL;
+    thread_read.join();
 
-    std::vector<char*> lines;
+    for(auto i = exampleMakers.begin(); i != exampleMakers.end(); ++i) 
+      (*i)->join();
+    
+    if(examples.empty())
+      continue;
 
-    //read examples
-    while(0 < read_line(&buffer, &buffer_size, fp))  {
+    one_best_loss += examples[0]->loss;
 
-        // store example lines
-        if(buffer[0] != '\n') {
-            lines.push_back(strdup(buffer));
-        }
-
-
-        // empty line -> end of examples for this instance
-        else if(lines.size() > 0) {
-          //            std::vector<ranker::ExampleMaker*> exampleMakers(num_threads, NULL);
-          std::vector<ranker::ExampleMaker*> exampleMakers;
-          exampleMakers.reserve(num_threads);
-
-            for(int i = 0; i < num_threads; ++i) {
-              //              exampleMakers[i] = new ranker::ExampleMaker(lines, weights);
-              exampleMakers.push_back(new ranker::ExampleMaker(lines, weights));
-              exampleMakers[i]->start(i*lines.size()/num_threads, (i+1)*lines.size()/num_threads);
-            }
-
-
-            // fprintf(stderr, "converting exampleMakers to examples\n");
-            for(auto i = exampleMakers.begin(); i != exampleMakers.end(); ++i) {
-                (*i)->join();
-            }
-
-            std::vector<ranker::Example*> examples;
-
-            //fprintf(stderr, "creating vectors of examples\n");
-            for(auto maker = exampleMakers.begin(); maker != exampleMakers.end(); ++maker) {
-                examples.insert(examples.end(), (*maker)->examples.begin(), (*maker)->examples.end());
-            }
-
-            // fprintf(stderr, "%d %d %d\n", exampleMakers.size(), examples.size(), lines.size());
-            assert(examples.size() == lines.size());
-
-
-
-            // compute scores and metrics
-
-            one_best_loss += examples[0]->loss;
-
-            ranker::Example* oracle = examples[0];
-            for(unsigned i = 0; i < examples.size(); ++i) {
-                if(examples[i]->loss < oracle->loss)
-                    oracle = examples[i];
-            }
-
-            //count the number of errors
-            //fprintf(stdout, "num examples = %d\n", examples.size());
-
-            // sort the examples by score
-            sort(examples.begin(), examples.end(), ranker::Example::example_ptr_desc_score_order());
-            avg_loss += examples[0]->loss;
-
-            for(unsigned int i = 0; i < examples.size(); ++i) {
-                if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
-                    ++errors;
-                    break;
-                }
-            }
-
-            ++num;
-            if(num % 10 == 0) fprintf(stderr, "\r%d %d %f %f/%f", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
-
-            // training -> update
-            if(alter_model) {
-                sort(oracle->features.begin(), oracle->features.end());
-
-                mira.update(oracle, num);
-
-                // std::for_each(examples.begin(),examples.end(), mira);
-                std::for_each(examples.begin(),examples.begin()+1, mira);
-            }
-
-            // reset data structures for next sentence
-
-            for(unsigned i = 0; i < exampleMakers.size(); ++i) {
-                delete exampleMakers[i];
-            }
-            for(unsigned i = 0; i < lines.size(); ++i) {
-                free(lines[i]);
-            }
-            lines.clear();
-            exampleMakers.clear();
-        }
+    ranker::Example* oracle = examples[0];
+    for(unsigned i = 1; i < examples.size(); ++i) {
+      if(examples[i]->loss < oracle->loss)
+	oracle = examples[i];
     }
 
-    fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
-
-    fclose(fp);
-    if(filter != NULL) {
-        int status;
-        wait(&status);
+    // sort the examples by score
+    sort(examples.begin(), examples.end(), ranker::Example::example_ptr_desc_score_order());
+    avg_loss += examples[0]->loss;
+    
+    for(unsigned int i = 0; i < examples.size(); ++i) {
+      if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
+	++errors;
+	break;
+      }
+      if(examples[i]->score < oracle->score) break;
     }
-    free(buffer);
 
-    return avg_loss/num;
+    ++num;
+    if(num % 10 == 0) 
+      fprintf(stderr, "\r%d %d %f %f/%f", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
+    
+    // training -> update
+    if(alter_model) {
+      mira.update(oracle, num);
+            
+      // std::for_each(examples.begin(),examples.end(), mira);
+      // std::for_each(examples.begin(),examples.begin()+1, mira);
+      mira(examples[0]);
+      
+      //fprintf(stderr, "after mira\n");
+    }
+    
+    // reset data structures for next sentence    
+
+    
+    for(unsigned i = 0; i < examples.size(); ++i) {
+      delete examples[i];
+    }
+
+    lines.clear();
+    examples.clear();
+  }
+  
+  fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
+    
+  fclose(fp);
+  if(filter != NULL) {
+    int status;
+    wait(&status);
+  }
+
+  return avg_loss/num;
 }
 
 int main(int argc, char** argv) {
@@ -243,9 +260,7 @@ int main(int argc, char** argv) {
     int loop = LOOP;
     int num_threads = NUM_THREADS;
     char* filter = NULL;
-
-    //char mode_def[] = "train";
-    //char * mode = mode_def;
+    int num_examples = -1;
 
 
     // read the commandline
@@ -266,13 +281,13 @@ int main(int argc, char** argv) {
             {"clip",        required_argument,       0, 'c'},
             {"iterations",  required_argument,       0, 'i'},
             {"threads",  required_argument,       0, 'j'},
-            //	{"mode",        required_argument,       0, 'm'},
+            {"examples",    required_argument,       0, 'e'},
             {0, 0, 0, 0}
         };
         // int to store arg position
         int option_index = 0;
 
-        c = getopt_long (argc, argv, "s:d:t:c:i:j:m:f:hv", long_options, &option_index);
+        c = getopt_long (argc, argv, "s:d:t:c:i:j:e:f:hv", long_options, &option_index);
 
         // Detect the end of the options
         if (c == -1)
@@ -334,10 +349,10 @@ int main(int argc, char** argv) {
                 filter = optarg;
                 break;
 
-                // case 'm':
-                //   fprintf (stderr, "mode is: %s (but I don't care ;)\n", optarg);
-                //   mode = optarg;
-                //   break;
+	case 'e':
+	  fprintf (stderr, "number of examples is assumed to be: %s\n", optarg);
+	  num_examples = atoi(optarg);
+	  break;
 
             case '?':
                 // getopt_long already printed an error message.
@@ -350,13 +365,14 @@ int main(int argc, char** argv) {
     }
 
 
-    if( trainset == NULL /* && !strcmp(mode, "train") */) {
-        fprintf(stderr, "training mode and no trainset ? Aborting\n");
+    if( trainset == NULL) {
+        fprintf(stderr, "training and no trainset ? Aborting\n");
         abort();
     }
 
 
-    int num_examples = compute_num_examples(trainset, filter);
+    if(num_examples <= 0) 
+      num_examples = compute_num_examples(trainset, filter);
 
     std::vector<double> weights;
     std::vector<double> avgWeights;
