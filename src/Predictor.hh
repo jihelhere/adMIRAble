@@ -14,18 +14,18 @@ namespace ranker {
         std::unordered_map<std::string, int> mapping;
         std::vector<double> model;
 
-        Predictor(int num_threads, std::string modelname) {
+        Predictor(int num_threads, const std::string& modelname) {
             this->num_threads = num_threads;
             load_model(modelname);
         }
 
-        Predictor(int num_threads, std::string modelname, std::string mappingname) {
+        Predictor(int num_threads, const std::string& modelname, const std::string& mappingname) {
             this->num_threads = num_threads;
             load_model(modelname);
             load_mapping(mappingname);
         }
 
-        void load_model(std::string filename) {
+        void load_model(const std::string& filename) {
             FILE* fp = fopen(filename.c_str(), "r");
             if(!fp) {
                 fprintf(stderr, "ERROR: cannot load model from \"%s\"\n", filename.c_str());
@@ -52,7 +52,7 @@ namespace ranker {
             }
             fclose(fp);
         }
-        void load_mapping(std::string filename) {
+        void load_mapping(const std::string& filename) {
             FILE* fp = fopen(filename.c_str(), "r");
             if(!fp) {
                 fprintf(stderr, "ERROR: cannot load mapping from \"%s\"\n", filename.c_str());
@@ -74,7 +74,7 @@ namespace ranker {
             fclose(fp);
         }
 
-        int map(std::string feature) {
+        int map(const std::string& feature) {
             auto found = mapping.find(feature);
             if(found != mapping.end()) return found->second;
             return 0;
