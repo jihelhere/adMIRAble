@@ -179,17 +179,17 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     processed_lines = 0;
     finished = 0;
 
+    threadns::thread thread_read(&file_reader::process_file, &fr, &fp, &lines);
+
     for(int i = 0; i < num_threads; ++i) {
       //      fprintf(stderr, "starting examplemaker %d\n", i);
       exampleMakers[i]->start(&mutex_processed_lines, &processed_lines, &finished, &cond_process, &mutex_examples);
     }
 
-    threadns::thread thread_read(&file_reader::process_file, &fr, &fp, &lines);
+    thread_read.join();
 
     for(auto i = exampleMakers.begin(); i != exampleMakers.end(); ++i)
       (*i)->join();
-
-    thread_read.join();
 
 
     if(examples.empty())
