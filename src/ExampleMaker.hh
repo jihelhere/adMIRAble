@@ -45,7 +45,13 @@ namespace ranker {
         lock_type lock(*mlines);
 
         while(((unsigned) *processed_lines == lines.size()) && !*finished) {
-          cond_process->wait(lock);
+#ifdef USE_BOOST_THREAD
+	  cond_process->wait(lock); // no deadlock with boost implementation  ?
+	  //	  cond_process->timed_wait(lock, boost::posix_time::milliseconds(10));
+#else
+	  // prevent deadlock with posix implementation
+	 cond_process->wait_for(lock, std::chrono::duration<int,std::milli>(10));
+#endif
         }
 
 	if(*finished && ((unsigned) *processed_lines == lines.size())) { lock.unlock(); break;}
