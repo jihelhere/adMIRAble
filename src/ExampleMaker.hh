@@ -15,6 +15,9 @@ namespace threadns = std;
 #include "Example.hh"
 
 namespace ranker {
+
+  typedef threadns::unique_lock<threadns::mutex> lock_type;
+
   struct ExampleMaker
   {
 
@@ -24,7 +27,7 @@ namespace ranker {
     std::vector<double>& weights;
     std::vector<Example*>& examples;
 
-    ExampleMaker(std::vector<char*> &l, std::vector<double>& w, std::vector<Example*>& e) 
+    ExampleMaker(std::vector<char*> &l, std::vector<double>& w, std::vector<Example*>& e)
       : my_thread(), lines(l), weights(w), examples(e) {};
 
     ~ExampleMaker() {}
@@ -33,41 +36,45 @@ namespace ranker {
       my_thread.join();
     }
 
-    void create_examples(std::mutex* mlines, int* processed_lines, int* finished, std::condition_variable* cond_process)
+    void create_examples(threadns::mutex* mlines, int* processed_lines, int* finished, threadns::condition_variable* cond_process, threadns::mutex* mutex_examples)
     {
       while(1) {
 	int index;
-	char * string = NULL;
+	char * string;
 
-	std::unique_lock<std::mutex> lock(*mlines);
-	
-	while(((unsigned) *processed_lines >= lines.size()) && !*finished) {
-	  cond_process->wait(lock);
-	}
-	
-	if(*finished && ((unsigned) *processed_lines == lines.size())) break;
+        lock_type lock(*mlines);
+
+        while(((unsigned) *processed_lines == lines.size()) && !*finished) {
+          cond_process->wait(lock);
+        }
+
+	if(*finished && ((unsigned) *processed_lines == lines.size())) { lock.unlock(); break;}
 
 	index = (*processed_lines)++;
-	examples.resize(lines.size(),NULL);
 	string = lines[index];
-   
-	lock.unlock();
-	  
+
+        lock.unlock();
+
 	Example * e = new Example(string);
-	e-> compute_score(weights);
-	    
-	lock.lock();
+	e->compute_score(weights);
+
+
+        lock_type lock2(*mutex_examples);
+        if (examples.size() < lines.size())
+          examples.resize(lines.size(),NULL);
 	examples[index] = e;
-	delete lines[index];
-	lock.unlock();
-      
+        lock2.unlock();
+
+        delete lines[index];
+
       }
     }
 
-    void start(std::mutex* mlines, int* processed_lines, int* finished, std::condition_variable* cond_process)
+    void start(threadns::mutex* mlines, int* processed_lines, int* finished, threadns::condition_variable* cond_process, threadns::mutex* mutex_examples)
     {
       my_thread = threadns::thread(&ExampleMaker::create_examples, this,
-				   mlines, processed_lines, finished, cond_process);
+				   mlines, processed_lines, finished, cond_process,
+                                   mutex_examples);
     }
 
 

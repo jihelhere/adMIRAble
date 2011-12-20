@@ -14,8 +14,6 @@
 #include <getopt.h>
 #include <fcntl.h>
 
-//#include <thread>
-
 #include "utils.h"
 #include "Example.hh"
 #include "ExampleMaker.hh"
@@ -30,8 +28,9 @@ static int verbose_flag = 0;
 
 int processed_lines = 0;
 int finished = 0;
-std::mutex mutex_processed_lines;
-std::condition_variable cond_process;
+threadns::mutex mutex_processed_lines;
+threadns::mutex mutex_examples;
+threadns::condition_variable cond_process;
 
 
 void  print_help_message(char *program_name)
@@ -46,7 +45,7 @@ void  print_help_message(char *program_name)
     fprintf(stderr, "      --threads,-j  <int>            : nb of threads (default is %d)\n", NUM_THREADS);
     fprintf(stderr, "      --filter,-f   <command>        : filter input through command (\"%%s\" is replaced by the filename)\n");
     fprintf(stderr, "      --examples,-e <int>            : set number of examples (if known in advance)\n");
-    
+
     fprintf(stderr, "      -help,-h                       : print this message\n");
 }
 
@@ -131,21 +130,21 @@ struct file_reader
   file_reader() : buffer(NULL), buffer_size(0) {}
 
   ~file_reader() {free(buffer);}
-  
+
   void
   process_file(FILE** fp, std::vector<char*>* lines)
-  { 
+  {
     while(0 < read_line(&buffer, &buffer_size, *fp))  {
       if(buffer[0] != '\n') {
-	
-	mutex_processed_lines.lock();
+
+        mutex_processed_lines.lock();
 	lines->push_back(strdup(buffer));
-	cond_process.notify_all();
-	//	fprintf(stderr, "after notify\n");
-	mutex_processed_lines.unlock();
+        cond_process.notify_all();
+        //        fprintf(stderr, "after notify, size lines: %ld\n", lines->size());
+        mutex_processed_lines.unlock();
       }
       else break;
-      
+
     }
     finished = 1;
     cond_process.notify_all();
@@ -166,7 +165,7 @@ double process(const char* filename, const char* filter, std::vector<double> &we
   }
 
   std::vector<char*> lines;
-  std::vector<ranker::Example*> examples; 
+  std::vector<ranker::Example*> examples;
   std::vector<ranker::ExampleMaker*> exampleMakers(num_threads, NULL);
 
   for(int i = 0; i < num_threads; ++i) {
@@ -180,17 +179,19 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     processed_lines = 0;
     finished = 0;
 
+    for(int i = 0; i < num_threads; ++i) {
+      //      fprintf(stderr, "starting examplemaker %d\n", i);
+      exampleMakers[i]->start(&mutex_processed_lines, &processed_lines, &finished, &cond_process, &mutex_examples);
+    }
+
     threadns::thread thread_read(&file_reader::process_file, &fr, &fp, &lines);
 
-    for(int i = 0; i < num_threads; ++i) {
-      exampleMakers[i]->start(&mutex_processed_lines, &processed_lines, &finished, &cond_process);
-    }
+    for(auto i = exampleMakers.begin(); i != exampleMakers.end(); ++i)
+      (*i)->join();
 
     thread_read.join();
 
-    for(auto i = exampleMakers.begin(); i != exampleMakers.end(); ++i) 
-      (*i)->join();
-    
+
     if(examples.empty())
       continue;
 
@@ -205,7 +206,7 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     // sort the examples by score
     sort(examples.begin(), examples.end(), ranker::Example::example_ptr_desc_score_order());
     avg_loss += examples[0]->loss;
-    
+
     for(unsigned int i = 0; i < examples.size(); ++i) {
       if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
 	++errors;
@@ -215,23 +216,23 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     }
 
     ++num;
-    if(num % 10 == 0) 
+    if(num % 10 == 0)
       fprintf(stderr, "\r%d %d %f %f/%f", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
-    
+
     // training -> update
     if(alter_model) {
       mira.update(oracle, num);
-            
+
       // std::for_each(examples.begin(),examples.end(), mira);
       // std::for_each(examples.begin(),examples.begin()+1, mira);
       mira(examples[0]);
-      
+
       //fprintf(stderr, "after mira\n");
     }
-    
-    // reset data structures for next sentence    
 
-    
+    // reset data structures for next sentence
+
+
     for(unsigned i = 0; i < examples.size(); ++i) {
       delete examples[i];
     }
@@ -239,9 +240,9 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     lines.clear();
     examples.clear();
   }
-  
+
   fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, (double)errors/num, avg_loss / num, one_best_loss / num);
-    
+
   fclose(fp);
   if(filter != NULL) {
     int status;
@@ -371,7 +372,7 @@ int main(int argc, char** argv) {
     }
 
 
-    if(num_examples <= 0) 
+    if(num_examples <= 0)
       num_examples = compute_num_examples(trainset, filter);
 
     std::vector<double> weights;

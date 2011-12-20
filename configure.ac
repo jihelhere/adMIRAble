@@ -13,7 +13,7 @@ AC_ARG_ENABLE(debug, [--enable-debug=[no/yes] turn on debugging
                      [default=$debug_default]],, enable_debug=$debug_default)
 
 if test "x$enable_debug" = "xyes"; then
-    CXXFLAGS="$CXXFLAGS -g -pg -DDEBUG -Wall -Wextra -pedantic -std=c++0x"
+    CXXFLAGS="$CXXFLAGS -g -DDEBUG -Wall -Wextra -pedantic -std=c++0x"
     AC_MSG_RESULT(yes)
 else
     CXXFLAGS="$CXXFLAGS -O6 -DNDEBUG -Wall -Wextra -pedantic -std=c++0x -ffast-math"
