@@ -151,6 +151,25 @@ struct file_reader
   }
 };
 
+
+struct oracle_checker
+{
+  const ranker::Example * oracle;
+
+  oracle_checker(const ranker::Example* o) : oracle(o) {};
+
+  inline bool operator()(const ranker::Example* e)
+  {
+    //    fprintf(stderr, "e.score %g oracle.score %g\n", e->score, oracle->score);
+    //    fprintf(stderr, "e.loss %g oracle.loss %g\n", e->score, oracle->score);
+    return ( (e->score > oracle->score) || (e->score == oracle->score && e->loss > oracle->loss));
+  }
+
+};
+
+
+
+
 double process(const char* filename, const char* filter, std::vector<double> &weights, bool alter_model, int num_threads, ranker::MiraOperator& mira)
 {
   int num = 0;
@@ -182,7 +201,6 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     threadns::thread thread_read(&file_reader::process_file, &fr, &fp, &lines);
 
     for(int i = 0; i < num_threads; ++i) {
-      //      fprintf(stderr, "starting examplemaker %d\n", i);
       exampleMakers[i]->start(&mutex_processed_lines, &processed_lines, &finished, &cond_process, &mutex_examples);
     }
 
@@ -204,16 +222,11 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     }
 
     // sort the examples by score
-    sort(examples.begin(), examples.end(), ranker::Example::example_ptr_desc_score_order());
-    avg_loss += examples[0]->loss;
+    auto pos = std::min_element(examples.begin(), examples.end(), ranker::Example::example_ptr_desc_score_order());
+    avg_loss += (*pos)->loss ;
 
-    for(unsigned int i = 0; i < examples.size(); ++i) {
-      if(examples[i]->score > oracle->score || (examples[i]->score == oracle->score && examples[i]->loss > oracle->loss)) {
-	++errors;
-	break;
-      }
-      if(examples[i]->score < oracle->score) break;
-    }
+    if (std::find_if(examples.begin(), examples.end(), oracle_checker(oracle)) != examples.end())
+      ++errors;
 
     ++num;
     if(num % 10 == 0)
@@ -223,16 +236,10 @@ double process(const char* filename, const char* filter, std::vector<double> &we
     if(alter_model) {
       mira.update(oracle, num);
 
-      // std::for_each(examples.begin(),examples.end(), mira);
-      // std::for_each(examples.begin(),examples.begin()+1, mira);
-      mira(examples[0]);
-
-      //fprintf(stderr, "after mira\n");
+      mira(*pos);
     }
 
     // reset data structures for next sentence
-
-
     for(unsigned i = 0; i < examples.size(); ++i) {
       delete examples[i];
     }
