@@ -17,5 +17,5 @@ do
 done
 
 [ -f $dataset.model ] || $bin/ranker-learn -s $dataset.tr.mapped.gz -d $dataset.val.mapped.gz -t $dataset.t.mapped.gz -c 1 -i 10 -f "gunzip -c" -j 4 > $dataset.model
-gunzip -c $dataset.val.mapped.gz | $bin/ranker_main $dataset.model > $dataset.val.out
-gunzip -c $dataset.t.mapped.gz | $bin/ranker_main $dataset.model > $dataset.t.out
+gunzip -c $dataset.val.mapped.gz | $bin/ranker_main -m $dataset.model > $dataset.val.out
+gunzip -c $dataset.t.mapped.gz | $bin/ranker_main -m $dataset.model > $dataset.t.out
