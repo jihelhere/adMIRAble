@@ -117,4 +117,3 @@ int main(int argc, char** argv) {
     fprintf(stderr, "\r%d %f/%f\n", num, avg_loss / num, one_best_loss / num);
     return 0;
 }
-

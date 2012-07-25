@@ -1,5 +1,5 @@
 #AM_CPPFLAGS= -DNDEBUG
-#AM_CXXFLAGS= -O6 
+#AM_CXXFLAGS= -O6
 
 bin_PROGRAMS = ranker-learn ranker-predict count count_by_instance drop_common_features filter_and_map split merge-models ranker-learn-iteration ranker_main ranker_parallel
 
@@ -17,7 +17,7 @@ ranker_learn_iteration_LDFLAGS = -lm
 ranker_learn_SOURCES = example.hh exampleMaker.hh MiraOperator.hh ranker-learn.cc utils.c utils.h
 ranker_learn_LDFLAGS= -lm -pthread
 if WANT_BOOST_THREAD
-ranker_learn_LDFLAGS+= $(BOOST_LDFLAGS) $(BOOST_THREAD_LIB)
+ranker_learn_LDFLAGS+= $(BOOST_LDFLAGS) $(BOOST_SYSTEM_LIB) $(BOOST_THREAD_LIB)
 endif
 
 ranker_predict_SOURCES = ranker-predict.cc utils.c utils.h
