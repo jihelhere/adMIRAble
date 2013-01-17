@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <limits>
+
 #include "utils.h"
 
 using namespace std;
@@ -51,7 +53,9 @@ int main(int argc, char** argv) {
     fprintf(stderr, "feature weight read successfully\n");
 
     fclose(fp);
-    int num = 0;
+
+    int num = 1;
+    int errors = 0;
     double avg_loss = 0;
     double one_best_loss = 0;
     double max = 0;
@@ -59,16 +63,22 @@ int main(int argc, char** argv) {
     int is_one_best = 1;
     int argmax = 0;
     int current = 0;
+    double loss = 0.0;
+    double best_loss = std::numeric_limits<double>::max();
+
     while(0 < (length = read_line(&buffer, &buffer_size, stdin))) {
-        if(buffer[0] == '\n') {
-            avg_loss += loss_of_max;
-            if(num % 10 == 0) fprintf(stderr, "\r%d %f/%f", num, avg_loss / num, one_best_loss / num);
-            num ++;
-            fprintf(stdout, "%d\n", argmax);
-            is_one_best = 1;
-            current = 0;
-            continue;
-        }
+
+      if(buffer[0] == '\n') {
+        avg_loss += loss_of_max;
+        if(num % 10 == 0) fprintf(stderr, "\r%d %f/%f", num, avg_loss / num, one_best_loss / num);
+        num ++;
+        if (loss_of_max > best_loss) errors++;
+
+        fprintf(stdout, "%d\n", argmax);
+        is_one_best = 1;
+        current = 0;
+        continue;
+      }
 
 	if(current == (limit))
 	  continue;
@@ -76,10 +86,10 @@ int main(int argc, char** argv) {
         char* token;
         int first = 1;
         double score = 0.0;
-        double loss = 0.0;
         for(token = strtok(buffer, " \t\n\r"); token != NULL; token = strtok(NULL, " \t\n\r")) {
             if(first == 1) {
                 first = 0;
+                loss = strtod(token, NULL);
             } else {
                 char* value_start = strrchr(token, ':');
                 if(value_start != NULL) {
@@ -105,15 +115,21 @@ int main(int argc, char** argv) {
             one_best_loss += loss;
             is_one_best = 0;
             argmax = current;
+            best_loss = loss;
         } else {
+
             if(score > max) {
                 max = score;
                 loss_of_max = loss;
                 argmax = current;
             }
+            if (best_loss > loss)
+              {
+                 best_loss = loss;
+              }
         }
         current++;
     }
-    fprintf(stderr, "\r%d %f/%f\n", num, avg_loss / num, one_best_loss / num);
+    fprintf(stderr, "\r%d %d %f %f/%f\n", num, errors, float(errors) / num, avg_loss / num, one_best_loss / num);
     return 0;
 }

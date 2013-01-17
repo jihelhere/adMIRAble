@@ -39,21 +39,30 @@ struct Example {
     char * input = line;
     char *token = NULL;
 
+
+    //    fprintf(stderr, "%s", line);
+
     //TODO: uncomment this
     // char *comment = strchr(input, '#');
     // if(comment != NULL) *comment = '\0'; // skip comments
 
-      token =  strsep(&input, " \t"); // read loss
-      loss = strtod(token, NULL);
-      for(;(token = strsep(&input, " \t\n")) && *token != '\0' ;) {
-        char* value = strrchr(token, ':');
+    token =  strsep(&input, " \t"); // read loss
+    loss = strtod(token, NULL);
+    //    fprintf(stderr, "loss: %g\n", loss);
+    for(;(token = strsep(&input, " \t\n")) && *token != '\0' ;) {
+      //      fprintf(stderr, "token: %s\n", token);
+      char* value = strrchr(token, ':');
 
-        *value = '\0';
-        double value_as_double = strtod(value + 1, NULL);
-        int feature_id = strtol(token, NULL, 10);
-        features.emplace_back(feature_id, value_as_double);
+      *value = '\0';
+      double value_as_double = strtod(value + 1, NULL);
+      int feature_id = strtol(token, NULL, 10);
+      features.emplace_back(feature_id, value_as_double);
 
-      }
+    }
+
+    //    fprintf(stderr, "line loaded\n");
+
+
   }
 
   double compute_score(const std::vector<double>& weights) {
@@ -61,8 +70,18 @@ struct Example {
 
       //      fprintf(stderr, "weights.size is: %ld\n", weights.size());
 
+      // for (auto i = features.begin(); i != features.end(); ++i)
+      //   {
+      //     fprintf(stderr, "<%d,%g> ", i->id, i->value);
+      //   }
+
       for(auto i = features.begin(); i != features.end(); ++i) {
-          if(i->id < weights.size()) score += i->value * weights[i->id];
+        //        fprintf(stderr, "id %i\n", i->id);
+        // if(i->id < weights.size())
+        //   fprintf(stderr, "weight id %f\n", weights[i->id]);
+        // else
+        //   fprintf(stderr, "weight id too big\n");
+        if(i->id < weights.size()) score += i->value * weights[i->id];
       }
       return score;
   }

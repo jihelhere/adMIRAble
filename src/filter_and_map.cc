@@ -7,30 +7,25 @@
 #include "utils.h"
 
 
+#include <algorithm>
+
+#define MAX_FEATURE 10000
+
+
 using namespace std;
 
-typedef struct feature {
+struct feature_t {
   int id;
   char* name;
   char* value;
-} feature_t;
 
-int feature_id_comparator(const void* a, const void* b) {
-    if(((feature_t*)a)->id > ((feature_t*)b)->id) return 1;
-    return -1;
-}
+  bool operator<(const feature_t& other) const
+  {
+    return id < other.id;
+  }
 
-bool dictionary_comparator(const pair<string, int> &a, const pair<string, int> &b) {
-    return a.first < b.first;
-}
+} ;
 
-struct eqstr
-{
-    bool operator()(const char* s1, const char* s2) const
-    {
-        return (s1 == s2) || (s1 && s2 && strcmp(s1, s2) == 0);
-    }
-};
 
 int main(int argc, char** argv) {
     if(argc != 3) {
@@ -63,7 +58,7 @@ int main(int argc, char** argv) {
     }
     fprintf(stderr, "\rloading %d\n", num);
     fclose(fp);
-    feature_t features[100000];
+    feature_t features[MAX_FEATURE];
     int num_features = 0;
     while(0 < (length = read_line(&buffer, &buffer_size, stdin))) {
         buffer[length - 1] = '\0'; // chop
@@ -80,20 +75,24 @@ int main(int argc, char** argv) {
                 *end = '\0';
                 auto id = dictionary.find(string(token));
                 if(id != dictionary.end()) {
-                    if(num_features >= 100000) {
-                        fprintf(stderr, "ERROR: example has more than 100k features\n");
+                    if(num_features >= MAX_FEATURE) {
+                      fprintf(stderr, "ERROR: example has more than %d features\n", MAX_FEATURE);
                         exit(1);
                     }
-                    features[num_features].id = id->second;
-                    features[num_features].value = end + 1;
-                    features[num_features].name = token;
-                    num_features++;
+
+                    feature_t& current = features[num_features];
+
+                    current.id = id->second;
+                    current.value = end + 1;
+                    current.name = token;
+                    ++num_features;
                 }
             }
         }
-        qsort(features, num_features, sizeof(feature_t), feature_id_comparator);
-        int i;
-        for(i = 0; i < num_features; i++) {
+
+        std::sort(features, features+num_features);
+
+        for(int i = 0; i < num_features; i++) {
             fprintf(stdout, " %d:%s", features[i].id, features[i].value);
         }
         fprintf(stdout, "\n");

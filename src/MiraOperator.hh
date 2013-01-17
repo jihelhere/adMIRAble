@@ -12,7 +12,7 @@ namespace ranker {
     struct MiraOperator
     {
         int loop;
-        int iteration; 
+        int iteration;
         int num_examples;
 
         double clip;
@@ -24,10 +24,10 @@ namespace ranker {
 
         MiraOperator(int loop_,  int iteration_, int num_examples_, double clip_,
                 std::vector<double> &weights_, std::vector<double> &avgWeights_)
-            : 
+            :
                 loop(loop_), iteration(iteration_), num_examples(num_examples_),
                 clip(clip_),
-                weights(weights_), avgWeights(avgWeights_), 
+                weights(weights_), avgWeights(avgWeights_),
                 num(0), oracle(NULL)
         {};
 
@@ -39,7 +39,7 @@ namespace ranker {
         }
 
       inline
-      bool incorrect_rank(const Example * example) 
+      bool incorrect_rank(const Example * example)
       {
 	return example->score > oracle->score || (example->score == oracle->score && example->loss > oracle->loss);
       }
@@ -47,16 +47,16 @@ namespace ranker {
 
       void operator()(Example * example)
       {
-	//            fprintf(stderr, "example: %g score: %g\n", example->score, example->loss);
+        //        fprintf(stderr, "example: %g score: %g\n", example->score, example->loss);
 
 	// skip the oracle -> useless update
 	if(example == oracle) return;
 	//fprintf(stderr, "mira: os: %g ol: %g es: %g el: %g\n", oracle->score, oracle->loss, example->score, example->loss);
 
-
-	//sort(example->features.begin(), example->features.end());
+	sort(oracle->features.begin(), oracle->features.end());
+	sort(example->features.begin(), example->features.end());
 	if(incorrect_rank(example)) {
-	  
+
 	  //copy
 	  auto i = oracle->features.begin(), j = example->features.begin();
 	  double norm = 0;
@@ -81,13 +81,13 @@ namespace ranker {
 
 	  double alpha = 0.0;
 	  double delta = example->loss - oracle->loss - (oracle->score - example->score);
-	  
+
 	  delta /= norm;
 	  alpha += delta;
-	  
+
 	  if(alpha < 0) alpha = 0;
 	  if(alpha > clip) alpha = clip;
-	  
+
 
 	  double avgUpdate(double(loop * num_examples - (num_examples * ((iteration + 1) - 1) + (num )) + 1));
 
@@ -95,18 +95,23 @@ namespace ranker {
 	  //                fprintf(stderr, "norm: %g alpha: %g\n", norm, alpha);
 
 	  //update weight vectors
-	  
+
+          //fprintf(stderr, "%lu %lu\n", oracle->features.size(), example->features.size());
+
+
+          sort(oracle->features.begin(), oracle->features.end());
+          sort(example->features.begin(), example->features.end());
 	  unsigned s = oracle->features.back().id > example->features.back().id ?
 	    oracle->features.back().id : example->features.back().id ;
-	  
 
-	  //		fprintf(stderr, "before resizing to %d\n", s);	
+
+          //          fprintf(stderr, "before resizing to %d\n", s);
 	  if(weights.size() <= s) {
 	    weights.resize(s+1, 0);
 	    avgWeights.resize(s+1, 0);
 	  }
-	  //		fprintf(stderr, "after resizing\n");	
-	  
+	  //		fprintf(stderr, "after resizing\n");
+
 	  i = oracle->features.begin();
 	  j = example->features.begin();
 
@@ -119,7 +124,7 @@ namespace ranker {
 	      weights[j->id] -= alpha * j->value;
 	      avgWeights[j->id] -= avgalpha * j->value;
 	      ++j;
-	      
+
 	    } else {
 	      assert(i->id == j->id);
 	      double difference = i->value - j->value;
@@ -129,20 +134,23 @@ namespace ranker {
 	      ++j;
 	    }
 	  }
-	  while(i != oracle->features.end())  { 
+	  while(i != oracle->features.end())  {
 	    weights[i->id] += alpha * i->value;
 	    avgWeights[i->id] += avgalpha * i->value;
 	    ++i;
 	  }
-	  while(j != example->features.end()) { 
+	  while(j != example->features.end()) {
+            //            fprintf(stderr, "size weights: %lu\n", weights.size());
 	    weights[j->id] -= alpha * j->value;
+            //            fprintf(stderr, "size avgWeights: %lu\n", avgWeights.size());
+            //            fprintf(stderr, "j->id: %lu\n", j->id);
 	    avgWeights[j->id] -= avgalpha * j->value;
 	    ++j;
 	  }
 	}
       }
     };
- 
+
 }
 
 #endif

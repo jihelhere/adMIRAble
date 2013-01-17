@@ -62,8 +62,11 @@ namespace ranker {
         lock.unlock();
 
 	Example * e = new Example(string);
+        //        fprintf(stderr, "before compute_score\n");
 	e->compute_score(weights);
+        //        fprintf(stderr, "after compute_score\n");
 
+        //        fprintf(stderr, "before resize\n");
 
         lock_type lock2(*mutex_examples);
         if (examples.size() < lines.size())
@@ -72,6 +75,10 @@ namespace ranker {
         lock2.unlock();
 
         delete lines[index];
+
+
+        //        fprintf(stderr, "after resize\n");
+
 
       }
     }

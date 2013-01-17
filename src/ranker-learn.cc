@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
             {"test",        required_argument,       0, 't'},
             {"clip",        required_argument,       0, 'c'},
             {"iterations",  required_argument,       0, 'i'},
-            {"threads",  required_argument,       0, 'j'},
+            {"threads",     required_argument,       0, 'j'},
             {"examples",    required_argument,       0, 'e'},
             {0, 0, 0, 0}
         };
@@ -385,7 +385,7 @@ int main(int argc, char** argv) {
     std::vector<double> weights;
     std::vector<double> avgWeights;
     std::vector<double> saveweights;
-
+    std::vector<double> predWeights;
     double dev_loss = -1;
 
 
@@ -396,25 +396,27 @@ int main(int argc, char** argv) {
         ranker::MiraOperator mira(loop, iteration, num_examples, clip, weights, avgWeights);
         (void) process(trainset, filter, weights, true, num_threads, mira);
         // averaging for next iteration
+
+        predWeights.resize(avgWeights.size());
         for(unsigned int i = 0; i < avgWeights.size(); ++i) {
             if(avgWeights[i] != 0.0)
-                weights[i] = avgWeights[i] / (num_examples * loop);
+                predWeights[i] = avgWeights[i] / (num_examples * loop);
         }
 
         if(devset) {
-            double d = process(devset, filter, weights, false, num_threads, mira);
+            double d = process(devset, filter, predWeights, false, num_threads, mira);
             if(dev_loss < 0 || d < dev_loss) {
                 dev_loss = d;
-                saveweights = weights;
+                saveweights = predWeights;
             }
         }
 
         if(testset)
-            (void) process(testset, filter, weights, false, num_threads, mira);
+            (void) process(testset, filter, predWeights, false, num_threads, mira);
     }
 
 
-    if(dev_loss < 0) { saveweights = weights;}
+    if(dev_loss < 0) { saveweights = predWeights;}
 
     for(unsigned int i = 0; i < saveweights.size(); ++i) {
         if(saveweights[i] != 0) {
